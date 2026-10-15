@@ -3348,6 +3348,92 @@ app.get(
 );
 
 // ---------- Inventory: Stock Transactions (In / Out / Transfer / Adjustment) ----------
+function getStockTxnDelta(txn) {
+  const type = txn.type;
+  if (type === "In") {
+    if (txn.status === "Rejected") return 0;
+    return Number(txn.acceptedQty) > 0 ? Number(txn.acceptedQty) : (Number(txn.quantity) || 0);
+  }
+  if (type === "Out") {
+    if (txn.status === "Rejected") return 0;
+    const outQty = Number(txn.acceptedQty) > 0 ? Number(txn.acceptedQty) : (Number(txn.quantity) || 0);
+    return -outQty;
+  }
+  if (type === "Adjustment") {
+    return Number(txn.quantity) || 0;
+  }
+  return 0;
+}
+
+async function applyStockTxnDelta(txn, multiplier = 1) {
+  if (txn.type === "Transfer") {
+    const qty = (Number(txn.quantity) || 0) * multiplier;
+    if (!qty || !txn.product) return;
+    const fromWh = txn.warehouse || "Main Warehouse";
+    const toWh = txn.toWarehouse;
+    if (!toWh || fromWh === toWh) return;
+
+    const nameRe = new RegExp(`^${String(txn.product).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+    await Item.updateOne({ name: nameRe, warehouse: fromWh }, { $inc: { qty: -qty } });
+
+    const target = await Item.findOne({ name: nameRe, warehouse: toWh });
+    if (target) {
+      await Item.updateOne({ _id: target._id }, { $inc: { qty } });
+    } else {
+      const anyItem = await Item.findOne({ name: nameRe });
+      const { seq, number } = await nextSeqAndNumber(Item);
+      await Item.create({
+        id: `ITM-${String(number).padStart(5, "0")}`,
+        seq,
+        name: String(txn.product).trim(),
+        itemCode: anyItem?.itemCode || "",
+        category: anyItem?.category || "",
+        brand: anyItem?.brand || "",
+        warehouse: toWh,
+        qty,
+        unit: txn.unit || anyItem?.unit || "Nos",
+        batchNo: txn.batchNo || anyItem?.batchNo || "",
+        status: "Active",
+      });
+    }
+    return;
+  }
+
+  const delta = getStockTxnDelta(txn) * multiplier;
+  if (!delta || !txn.product) return;
+
+  const wh = txn.warehouse || "Main Warehouse";
+  const nameRe = new RegExp(`^${String(txn.product).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+  const existing = await Item.findOne({ name: nameRe, warehouse: wh });
+
+  if (existing) {
+    const update = { $inc: { qty: delta } };
+    if (txn.batchNo && txn.batchNo.trim()) {
+      update.$set = { batchNo: txn.batchNo.trim() };
+    }
+    if (txn.unit && txn.unit.trim()) {
+      update.$set = { ...(update.$set || {}), unit: txn.unit.trim() };
+    }
+    await Item.updateOne({ _id: existing._id }, update);
+  } else if (delta > 0) {
+    const anyItem = await Item.findOne({ name: nameRe });
+    const { seq, number } = await nextSeqAndNumber(Item);
+    await Item.create({
+      id: `ITM-${String(number).padStart(5, "0")}`,
+      seq,
+      name: String(txn.product).trim(),
+      itemCode: anyItem?.itemCode || "",
+      category: anyItem?.category || "",
+      brand: anyItem?.brand || "",
+      warehouse: wh,
+      qty: delta,
+      unit: txn.unit || anyItem?.unit || "Nos",
+      batchNo: txn.batchNo || anyItem?.batchNo || "",
+      status: "Active",
+    });
+  }
+}
+
 function stockTransactionRoutes(path, type, idPrefix) {
   app.get(
     path,
@@ -3370,6 +3456,10 @@ function stockTransactionRoutes(path, type, idPrefix) {
       const body = req.body || {};
       if (!body.product) return res.status(400).json({ message: "Product is required." });
       const { seq, number } = await nextSeqAndNumber(StockTransaction);
+      const party = body.supplier || body.departmentOrCustomer || body.customerOrSupplier || "";
+      const poVal = body.poNumber || body.referenceNo || "";
+      const refVal = body.referenceNo || body.poNumber || "";
+      const grnVal = body.grnNumber || "";
       const newTxn = await StockTransaction.create({
         id: `${idPrefix}-${String(number).padStart(4, "0")}`,
         seq,
@@ -3379,18 +3469,19 @@ function stockTransactionRoutes(path, type, idPrefix) {
         warehouse: body.warehouse || "Main Warehouse",
         toWarehouse: body.toWarehouse || "",
         reason: body.reason || "",
-        poNumber: body.poNumber || "",
-        grnNumber: body.grnNumber || "",
-        supplier: body.supplier || "",
+        poNumber: poVal,
+        grnNumber: grnVal,
+        supplier: party,
         batchNo: body.batchNo || "",
         acceptedQty: Number(body.acceptedQty) || 0,
-        status: body.status || (type === "In" ? "Pending QC" : ""),
+        status: body.status || (type === "In" ? "Pending QC" : "Completed"),
         issueType: body.issueType || "",
-        referenceNo: body.referenceNo || "",
-        departmentOrCustomer: body.departmentOrCustomer || "",
+        referenceNo: refVal,
+        departmentOrCustomer: party,
         unit: body.unit || "Nos",
         date: todayLabel(),
       });
+      await applyStockTxnDelta(newTxn, 1);
       res.status(201).json(newTxn);
     })
   );
@@ -3400,6 +3491,14 @@ function stockTransactionRoutes(path, type, idPrefix) {
     asyncHandler(async (req, res) => {
       const body = req.body || {};
       if (!body.product) return res.status(400).json({ message: "Product is required." });
+      const oldTxn = await StockTransaction.findOne({ id: req.params.id, type });
+      if (!oldTxn) return res.status(404).json({ message: "Record not found." });
+
+      const party = body.supplier !== undefined ? body.supplier : (body.departmentOrCustomer !== undefined ? body.departmentOrCustomer : oldTxn.supplier);
+      const poVal = body.poNumber !== undefined ? body.poNumber : (body.referenceNo !== undefined ? body.referenceNo : oldTxn.poNumber);
+      const refVal = body.referenceNo !== undefined ? body.referenceNo : (body.poNumber !== undefined ? body.poNumber : oldTxn.referenceNo);
+      const grnVal = body.grnNumber !== undefined ? body.grnNumber : oldTxn.grnNumber;
+
       const updated = await StockTransaction.findOneAndUpdate(
         { id: req.params.id, type },
         {
@@ -3409,21 +3508,22 @@ function stockTransactionRoutes(path, type, idPrefix) {
             warehouse: body.warehouse || "Main Warehouse",
             toWarehouse: body.toWarehouse || "",
             reason: body.reason || "",
-            poNumber: body.poNumber || "",
-            grnNumber: body.grnNumber || "",
-            supplier: body.supplier || "",
+            poNumber: poVal,
+            grnNumber: grnVal,
+            supplier: party,
             batchNo: body.batchNo || "",
             acceptedQty: Number(body.acceptedQty) || 0,
-            status: body.status || (type === "In" ? "Pending QC" : ""),
+            status: body.status || (type === "In" ? "Pending QC" : "Completed"),
             issueType: body.issueType || "",
-            referenceNo: body.referenceNo || "",
-            departmentOrCustomer: body.departmentOrCustomer || "",
+            referenceNo: refVal,
+            departmentOrCustomer: party,
             unit: body.unit || "Nos",
           },
         },
         { new: true }
       );
-      if (!updated) return res.status(404).json({ message: "Record not found." });
+      await applyStockTxnDelta(oldTxn, -1);
+      await applyStockTxnDelta(updated, 1);
       res.json(updated);
     })
   );
@@ -3433,6 +3533,7 @@ function stockTransactionRoutes(path, type, idPrefix) {
     asyncHandler(async (req, res) => {
       const deleted = await StockTransaction.findOneAndDelete({ id: req.params.id, type });
       if (!deleted) return res.status(404).json({ message: "Record not found." });
+      await applyStockTxnDelta(deleted, -1);
       res.json({ success: true });
     })
   );
@@ -3442,6 +3543,23 @@ stockTransactionRoutes("/api/inventory/stock-in", "In", "SIN");
 stockTransactionRoutes("/api/inventory/stock-out", "Out", "SOUT");
 stockTransactionRoutes("/api/inventory/stock-transfer", "Transfer", "STRF");
 stockTransactionRoutes("/api/inventory/stock-adjustment", "Adjustment", "SADJ");
+
+// Retrieve stock movement history / particulars for a product or warehouse
+app.get(
+  "/api/inventory/movements",
+  asyncHandler(async (req, res) => {
+    const { product, warehouse } = req.query || {};
+    const filter = {};
+    if (product) {
+      filter.product = new RegExp(`^${String(product).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+    }
+    if (warehouse) {
+      filter.warehouse = warehouse;
+    }
+    const movements = await StockTransaction.find(filter).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
+    res.json(movements);
+  })
+);
 
 // ---------- Manufacturing ----------
 // Lives in its own file purely for size; it is registered here, inside the

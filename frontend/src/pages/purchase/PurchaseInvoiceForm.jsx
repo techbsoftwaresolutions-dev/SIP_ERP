@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+
 import api from "../../api/client";
 import ItemsEditor from "../../components/forms/ItemsEditor";
 import DateInput from "../../components/forms/DateInput";
-import BarcodeScanField from "../../components/forms/BarcodeScanField";
+
 import CustomFieldsSection from "../../components/forms/CustomFieldsSection";
 import { usePermissions } from "../../context/PermissionsContext";
 import Select from "../../components/forms/Select";
@@ -84,12 +84,12 @@ export default function PurchaseInvoiceForm({ mode, editingId, initial, supplier
           setGrLookupStatus("found");
           lines = linesFromReceipt(gr, po);
         }
-      } catch (e) {
+      } catch  {
         // GRN lookup is a convenience; the PO details alone are enough.
       }
       setItems(lines);
       setPoLookupStatus("found");
-    } catch (err) {
+    } catch  {
       setPoLookupStatus("not-found");
     } finally {
       setPoLookupBusy(false);
@@ -130,13 +130,13 @@ export default function PurchaseInvoiceForm({ mode, editingId, initial, supplier
         setPoLookupStatus("found");
         try {
           po = await api.get(`/api/purchase-orders/${encodeURIComponent(gr.poNumber)}`);
-        } catch (e) {
+        } catch  {
           setPoLookupStatus("");
         }
       }
       setItems(linesFromReceipt(gr, po));
       setGrLookupStatus("found");
-    } catch (err) {
+    } catch  {
       setGrLookupStatus("not-found");
     } finally {
       setGrLookupBusy(false);

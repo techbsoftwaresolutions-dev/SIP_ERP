@@ -8707,13 +8707,28 @@ table.data-table tbody tr {
 }
 
 /* ---- rows as soft cards ---- */
-.card:has(.data-table-cards) { background: transparent; border-color: transparent; box-shadow: none; overflow: visible; }
-.card:has(.data-table-cards) > .table-toolbar {
+.card:has(.data-table-cards),
+.card.table-cards-mode {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.card:has(.data-table-cards) > .table-toolbar,
+.card.table-cards-mode > .table-toolbar {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
   margin-bottom: 8px;
+}
+.card:has(.data-table-cards) > .table-footer,
+.card.table-cards-mode > .table-footer {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  margin-top: 10px;
 }
 table.data-table.data-table-cards {
   border-collapse: separate;
@@ -8734,14 +8749,25 @@ table.data-table.data-table-cards {
   color: var(--text-muted);
 }
 .data-table-cards tbody td {
-  padding: 14px 10px;
-  border: 0;
+  padding: 14px 12px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   background: var(--card);
   vertical-align: middle;
 }
-.data-table-cards tbody tr { box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 6px 16px rgba(15, 23, 42, 0.04); }
-.data-table-cards tbody td:first-child { border-radius: 14px 0 0 14px; padding-left: 14px; }
-.data-table-cards tbody td:last-child { border-radius: 0 14px 14px 0; }
+.data-table-cards tbody tr {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.03);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.data-table-cards tbody td:first-child {
+  border-left: 1px solid var(--border);
+  border-radius: 14px 0 0 14px;
+  padding-left: 14px;
+}
+.data-table-cards tbody td:last-child {
+  border-right: 1px solid var(--border);
+  border-radius: 0 14px 14px 0;
+}
 /* On a narrow screen the table scrolls sideways; keep the row actions in view. */
 .data-table-cards thead th:last-child,
 .data-table-cards tbody td:last-child {
@@ -8749,10 +8775,13 @@ table.data-table.data-table-cards {
   right: 0;
   z-index: 1;
 }
-.data-table-cards thead th:last-child { background: var(--bg); }
+.data-table-cards thead th:last-child { background: transparent; }
 .data-table-cards tbody td:last-child { box-shadow: -10px 0 14px -10px rgba(15, 23, 42, 0.12); }
-.data-table-cards tbody tr:hover td { background: var(--blue-bg-soft, #f6f9ff); }
-.data-table-cards .loading-row { border-radius: 14px; }
+.data-table-cards tbody tr:hover td { background: var(--row-hover); }
+[data-theme="dark"] .data-table-cards thead th:last-child { background: transparent; }
+[data-theme="dark"] .data-table-cards tbody td:last-child { box-shadow: -10px 0 14px -10px rgba(0, 0, 0, 0.35); }
+[data-theme="dark"] .data-table-cards tbody tr { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); }
+.data-table-cards .loading-row { border-radius: 14px; background: var(--card); }
 .data-table-cards .skeleton-row td { background: var(--card); }
 
 .id-pill {

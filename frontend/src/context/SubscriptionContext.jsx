@@ -22,7 +22,7 @@ export function SubscriptionProvider({ children }) {
       writeSwr("/api/subscription/status", data);
       setInfo({ ...data, loading: false });
       return data;
-    } catch (_) {
+    } catch  {
       // Never lock anyone out because the check itself failed — the backend
       // refuses blocked tenants on every other route anyway, so a failure here
       // degrades to "let them through and let the API do the talking".

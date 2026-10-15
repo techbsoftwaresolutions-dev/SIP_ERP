@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/client";
 import PageHeader from "../../components/layout/PageHeader";
 import AddRecordForm from "../../components/forms/AddRecordForm";
@@ -13,8 +13,19 @@ export default function StockInForm() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const location = useLocation();
   const { products, suppliers, warehouses, createWarehouse } = useStockInLookups();
-  const [initialValues, setInitialValues] = useState(isEdit ? null : {});
+  const [initialValues, setInitialValues] = useState(() => {
+    if (isEdit) return null;
+    if (location.state) {
+      return {
+        product: location.state.product || "",
+        warehouse: location.state.warehouse || "",
+        unit: location.state.unit || "",
+      };
+    }
+    return {};
+  });
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {

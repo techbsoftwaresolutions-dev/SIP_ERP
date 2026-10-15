@@ -80,7 +80,7 @@ export default function GoodsReceiptForm({
         }))
       );
       setPoLookupStatus("found");
-    } catch (err) {
+    } catch  {
       setPoLookupStatus("not-found");
     }
   };

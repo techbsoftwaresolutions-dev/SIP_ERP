@@ -64,7 +64,7 @@ export default function PurchaseOrderForm({ mode, editingId, initial, suppliers,
       setItems((po.items || []).map((i) => computeRow(i)));
       setCustomFieldValues(po.customFields || {});
       setPoLookupStatus("found");
-    } catch (err) {
+    } catch  {
       setPoLookupStatus("not-found");
     }
   };

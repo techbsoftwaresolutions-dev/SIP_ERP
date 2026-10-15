@@ -11,6 +11,7 @@ import usePaginatedData from "../../hooks/usePaginatedData";
 import api from "../../api/client";
 import Icon from "../ui/Icon";
 import { usePermissions } from "../../context/PermissionsContext";
+import useTableStyle from "../../hooks/useTableStyle";
 import Loader from "../ui/Loader";
 import Toast from "../ui/Toast";
 
@@ -65,6 +66,7 @@ export default function SimpleListPage({
   // The module is derived from `endpoint` (e.g. /api/customers -> customers)
   // so none of the ~20 pages using this component need a new prop.
   const { canEndpoint } = usePermissions();
+  const tableStyle = useTableStyle();
   const canCreate = canEndpoint(endpoint, "create");
   const canEdit = canEndpoint(endpoint, "edit");
   const canDelete = canEndpoint(endpoint, "delete");
@@ -141,7 +143,7 @@ export default function SimpleListPage({
     for (const id of ids) {
       try {
         await api.delete(`${resourceBase}/${encodeURIComponent(id)}`);
-      } catch (_err) {
+      } catch  {
         failed++;
       }
     }
@@ -286,7 +288,7 @@ export default function SimpleListPage({
         </div>
       )}
 
-      <div className="desktop-list-view card">
+      <div className={`desktop-list-view card${tableStyle === "cards" ? " table-cards-mode" : ""}`}>
         <div className="table-toolbar">
           <div className="table-search">
             <Icon name="search" size={16} />
@@ -321,6 +323,7 @@ export default function SimpleListPage({
         )}
 
         <DataTable
+          variant={tableStyle === "cards" ? "cards" : "classic"}
           columns={tableColumns}
           rows={tableRows}
           loading={loading}

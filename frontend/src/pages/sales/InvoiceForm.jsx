@@ -4,7 +4,7 @@ import api from "../../api/client";
 import PageHeader from "../../components/layout/PageHeader";
 import ItemsEditor from "../../components/forms/ItemsEditor";
 import SearchableSelect from "../../components/forms/SearchableSelect";
-import BarcodeScanField from "../../components/forms/BarcodeScanField";
+
 import CustomFieldsSection from "../../components/forms/CustomFieldsSection";
 import Icon from "../../components/ui/Icon";
 import { useAuth } from "../../context/AuthContext";

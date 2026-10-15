@@ -18,7 +18,7 @@ const STORAGE_KEY = "theme";
 function storedMode() {
   try {
     return localStorage.getItem(STORAGE_KEY) || "";
-  } catch (_) {
+  } catch  {
     // Private windows and blocked site data both throw here.
     return "";
   }
@@ -75,7 +75,7 @@ export function ThemeProvider({ children }) {
     setModeState(next);
     try {
       localStorage.setItem(STORAGE_KEY, next);
-    } catch (_) {
+    } catch  {
       // Remembering the choice is a convenience; failing to is not an error.
     }
   };

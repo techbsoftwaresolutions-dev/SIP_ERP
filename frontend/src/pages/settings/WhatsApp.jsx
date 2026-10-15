@@ -101,7 +101,7 @@ export default function WhatsAppSettings() {
       await navigator.clipboard.writeText(TEMPLATE_BODY);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
-    } catch (_) {
+    } catch  {
       // clipboard blocked — the text is on screen to copy by hand
     }
   };

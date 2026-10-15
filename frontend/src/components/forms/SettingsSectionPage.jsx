@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api, { clearSwrCache } from "../../api/client";
+import api, { clearSwrCache, writeSwr } from "../../api/client";
 import PageHeader from "../layout/PageHeader";
 import Icon from "../ui/Icon";
 import Loader from "../ui/Loader";
@@ -55,6 +55,7 @@ export default function SettingsSectionPage({ title, crumbs, sectionTitle, field
       // A new table template applies straight away on every list page.
       if (settings.tableStyle !== savedSettings.tableStyle) {
         clearSwrCache();
+        writeSwr("/api/settings", settings);
         window.dispatchEvent(new Event("table-style-changed"));
       }
     } catch (err) {

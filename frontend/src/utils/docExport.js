@@ -27,13 +27,27 @@ export function copyCount(settings, key, fallback = 1) {
 }
 
 const cell = (v) => {
-  const s = v === null || v === undefined ? "" : String(v);
+  const s = v === null || v === undefined ? "" : String(v).trim();
+  if (!s) return "";
+  // If value is purely numeric and 7+ digits (phone, account no, PIN), wrap as ="..."
+  // so Excel opens it strictly as text rather than converting to scientific notation (e.g. 9.6E+09).
+  if (/^\+?\d{7,}$/.test(s)) {
+    return `="${s}"`;
+  }
+  // If value looks like a date, wrap as ="..." so Excel doesn't display ######## in narrow columns
+  if (
+    /^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/.test(s) ||
+    /^\d{4}-\d{2}-\d{2}$/.test(s) ||
+    /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(s)
+  ) {
+    return `="${s}"`;
+  }
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 const line = (cells) => cells.map(cell).join(",");
 
 // A document as CSV: a title, its key/value details, the line items as a
-// table, then the totals.
+// table, then the totals aligned under the rightmost amount column.
 //   meta:    [[label, value], ...]
 //   columns: [{ header, get: (item, index) => value }]
 //   totals:  [[label, value], ...]
@@ -47,7 +61,11 @@ export function buildDocCsv({ title, meta = [], columns = [], items = [], totals
   }
   if (totals.length) {
     rows.push("");
-    totals.forEach(([k, v]) => rows.push(line([k, v])));
+    const padCount = Math.max(0, columns.length - 2);
+    totals.forEach(([k, v]) => {
+      const pad = Array(padCount).fill("");
+      rows.push(line([...pad, k, v]));
+    });
   }
   return rows.join("\r\n");
 }

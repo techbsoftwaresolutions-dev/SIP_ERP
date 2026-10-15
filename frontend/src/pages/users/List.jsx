@@ -33,7 +33,7 @@ export default function Users() {
       await navigator.clipboard.writeText(invite.link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (_) {
+    } catch  {
       // Clipboard access can be refused; the link is on screen to select.
     }
   };

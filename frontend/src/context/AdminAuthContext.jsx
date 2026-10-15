@@ -42,7 +42,7 @@ export function AdminAuthProvider({ children }) {
     // dead even if a copy of it survives somewhere.
     try {
       await adminApi.post("/api/admin/auth/logout");
-    } catch (_) {
+    } catch  {
       // a already-invalid session is fine to ignore
     }
     clearAdminAuth();

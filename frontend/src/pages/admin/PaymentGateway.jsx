@@ -4,7 +4,6 @@ import PageHeader from "../../components/layout/PageHeader";
 import Icon from "../../components/ui/Icon";
 import Loader from "../../components/ui/Loader";
 import Toast from "../../components/ui/Toast";
-import StatusBadge from "../../components/ui/StatusBadge";
 
 export default function PaymentGateway() {
   const [config, setConfig] = useState(null);

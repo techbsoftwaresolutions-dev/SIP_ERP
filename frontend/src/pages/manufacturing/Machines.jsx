@@ -1,6 +1,6 @@
 import SimpleListPage from "../../components/data/SimpleListPage";
 import StatusBadge from "../../components/ui/StatusBadge";
-import { MACHINE_STATUSES, UNITS, num, useManufacturingLookups } from "./manufacturingLookups";
+import { UNITS, num, useManufacturingLookups } from "./manufacturingLookups";
 
 export default function Machines() {
   const { workCenters } = useManufacturingLookups({ workCenters: true });

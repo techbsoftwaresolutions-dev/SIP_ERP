@@ -46,7 +46,7 @@ export default function BarcodeScanner({ title = "Scan a barcode or QR code", on
       stopped = true;
       try {
         BrowserMultiFormatReader.releaseAllStreams();
-      } catch (_) {
+      } catch  {
         // best-effort cleanup — nothing to do if the stream was never opened
       }
     };

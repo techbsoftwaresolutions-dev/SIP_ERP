@@ -12,6 +12,7 @@ import Loader from "../../components/ui/Loader";
 import SendWhatsAppButton from "../../components/share/SendWhatsAppButton";
 import CopiesPicker from "../../components/share/CopiesPicker";
 import { buildDocCsv, copyCount, copyLabelList, downloadCsvText } from "../../utils/docExport";
+import { exportInvoiceExcel, exportInvoiceCsv } from "../../utils/excelExport";
 
 
 function DefaultInvoiceSheet({ copyLabel, invoice, customer, settings, intraState, sheetRef }) {
@@ -573,144 +574,35 @@ export default function InvoicePrint() {
     downloadBlob(blob, `invoice-${invoice.id}.doc`);
   };
 
-  // One copy only: a CSV is data, not a printout, so copies make no sense.
   const handleDownloadCsv = () => {
     if (!invoice) return;
-    const csv = buildDocCsv({
-      title: `Tax Invoice ${invoice.id}`,
-      meta: [
-        ["Invoice No", invoice.id],
-        ["Date", invoice.date],
-        ["Due Date", invoice.dueDate],
-        ["Customer", invoice.customer],
-        ["Address", invoice.address],
-        ["Phone", invoice.phone],
-        ["Place of Supply", placeOfSupply],
-        ["PO Number", invoice.poNumber],
-        ["Payment Mode", invoice.paymentMode],
-        ["Status", invoice.status],
-      ],
-      columns: [
-        { header: "#", get: (_, i) => i + 1 },
-        { header: "Item", get: (it) => it.product },
-        { header: "HSN/SAC", get: (it) => it.hsnCode },
-        { header: "Qty", get: (it) => it.quantity },
-        { header: "Unit", get: (it) => it.unit },
-        { header: "Unit Price", get: (it) => it.unitPrice },
-        { header: "Tax %", get: (it) => it.taxPercent },
-        { header: "Amount", get: (it) => it.amount },
-      ],
-      items: invoice.items || [],
-      totals: [
-        ["Sub Total", invoice.subTotal],
-        ["Tax", invoice.taxTotal],
-        ["Freight", invoice.freightCharges],
-        ["Total", invoice.amount],
-        ["Paid", invoice.paidAmount],
-        ["Balance", invoice.balance],
-      ],
-    });
-    downloadCsvText(csv, `invoice-${invoice.id}.csv`);
+    try {
+      exportInvoiceCsv({
+        invoice,
+        customer,
+        settings,
+        intraState,
+      });
+    } catch (err) {
+      console.error("CSV download error:", err);
+      window.alert("Could not download CSV: " + (err.message || "unknown error"));
+    }
   };
 
   const handleDownloadExcel = () => {
     if (!invoice) return;
-    const stateCode = getStateCode(invoice.placeOfSupply || customer?.state || "");
-    const items = invoice.items || [];
-    const split = taxSplit(invoice, intraState);
-    const shipping = shippingLines(invoice, customer);
-    const shippingAddressText = shipping.freeform || [shipping.line1, shipping.line2].filter(Boolean).join(", ");
-
-    const cell = (value, opts = {}) => {
-      const { bold, right, colspan, bg } = opts;
-      const isNum = typeof value === "number";
-      const styles = [
-        "border:1px solid #cccccc",
-        "padding:5px 10px",
-        "font-family:Arial,sans-serif",
-        "font-size:12px",
-        right || isNum ? "text-align:right" : "text-align:left",
-        bold ? "font-weight:bold" : "",
-        bg ? `background:${bg}` : "",
-        isNum ? "mso-number-format:'\\#\\,\\#\\#0.00'" : "mso-number-format:'\\@'",
-      ]
-        .filter(Boolean)
-        .join(";");
-      return `<td${colspan ? ` colspan="${colspan}"` : ""} style="${styles}">${value ?? ""}</td>`;
-    };
-    const row = (cells) => `<tr>${cells}</tr>`;
-    const labelRow = (k, v) => row(cell(k, { bold: true }) + cell(v, { colspan: 2 }));
-    const blankRow = () => row(cell("", { colspan: 3 }));
-
-    const copySection = (label) => {
-      const parts = [];
-      parts.push(row(cell(`TAX INVOICE — ${label}`, { bold: true, colspan: 3, bg: "#1c222c" })));
-      parts.push(blankRow());
-      parts.push(labelRow("Invoice No", invoice.id));
-      parts.push(labelRow("Invoice Date", invoice.date || "—"));
-      parts.push(labelRow("Customer", invoice.customer || "—"));
-      parts.push(labelRow("Billing Address", invoice.address || customer?.address || "—"));
-      parts.push(labelRow("Shipping Address", shippingAddressText || "—"));
-      parts.push(labelRow("PO Number", invoice.poNumber || "—"));
-      parts.push(labelRow("Transport Name", invoice.transportName || "—"));
-      parts.push(labelRow("Vehicle Number", invoice.vehicleNo || "—"));
-      parts.push(labelRow("Due Date", invoice.dueDate || "—"));
-      parts.push(labelRow("Buyer's GSTIN", customer?.gstNo || "—"));
-      parts.push(labelRow("State Code", stateCode || "—"));
-      parts.push(blankRow());
-      parts.push(
-        row(
-          cell("#", { bold: true, bg: "#eef4ff" }) +
-            cell("Description", { bold: true, bg: "#eef4ff" }) +
-            cell("HSN/SAC", { bold: true, bg: "#eef4ff" }) +
-            cell("Qty", { bold: true, right: true, bg: "#eef4ff" }) +
-            cell("Unit Price", { bold: true, right: true, bg: "#eef4ff" }) +
-            cell("Amount", { bold: true, right: true, bg: "#eef4ff" })
-        )
-      );
-      items.forEach((it, i) => {
-        parts.push(
-          row(
-            cell(i + 1) +
-              cell(it.product || "—") +
-              cell(it.hsnCode || "—") +
-              cell(it.quantity || 0, { right: true }) +
-              cell(it.unitPrice || 0, { right: true }) +
-              cell(it.amount || 0, { right: true })
-          )
-        );
+    try {
+      exportInvoiceExcel({
+        invoice,
+        customer,
+        settings,
+        intraState,
+        copyLabels,
       });
-      parts.push(blankRow());
-      parts.push(row(cell("Sub Total", { colspan: 2 }) + cell(split.taxableTotal, { right: true })));
-      if (intraState) {
-        parts.push(row(cell(`CGST (${split.cgstRate.toFixed(1)}%)`, { colspan: 2 }) + cell(split.cgstAmount, { right: true })));
-        parts.push(row(cell(`SGST (${split.sgstRate.toFixed(1)}%)`, { colspan: 2 }) + cell(split.sgstAmount, { right: true })));
-      } else {
-        parts.push(row(cell(`IGST (${split.igstRate.toFixed(1)}%)`, { colspan: 2 }) + cell(split.igstAmount, { right: true })));
-      }
-      if (invoice.freightCharges > 0) {
-        parts.push(row(cell("Freight Charges", { colspan: 2 }) + cell(invoice.freightCharges, { right: true })));
-      }
-      parts.push(row(cell("Total Amount", { bold: true, colspan: 2 }) + cell(invoice.amount || 0, { right: true, bold: true })));
-      parts.push(row(cell("Paid Amount", { colspan: 2 }) + cell(invoice.paidAmount || 0, { right: true })));
-      parts.push(row(cell("Balance Due", { bold: true, colspan: 2, bg: "#17b6d9" }) + cell(invoice.balance || 0, { right: true, bold: true, bg: "#17b6d9" })));
-      if (invoice.notes) {
-        parts.push(blankRow());
-        parts.push(row(cell("Notes", { bold: true, colspan: 3 })));
-        invoice.notes.split("\n").filter(Boolean).forEach((line) => {
-          parts.push(row(cell(`• ${line}`, { colspan: 3 })));
-        });
-      }
-      parts.push(blankRow());
-      parts.push(blankRow());
-      return parts.join("");
-    };
-
-    const colgroup = `<colgroup><col style="width:180px"><col style="width:280px"><col style="width:160px"></colgroup>`;
-    const table = `<table style="border-collapse:collapse;">${colgroup}${copyLabels.map(copySection).join("")}</table>`;
-    const html = `<html><head><meta charset="utf-8"></head><body>${table}</body></html>`;
-    const blob = new Blob(["﻿", html], { type: "application/vnd.ms-excel" });
-    downloadBlob(blob, `invoice-${invoice.id}.xls`);
+    } catch (err) {
+      console.error("Excel download error:", err);
+      window.alert("Could not download Excel: " + (err.message || "unknown error"));
+    }
   };
 
   if (error) {

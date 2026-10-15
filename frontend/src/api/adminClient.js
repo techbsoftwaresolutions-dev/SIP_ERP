@@ -17,7 +17,7 @@ export function readAdminAuth() {
   try {
     const raw = localStorage.getItem(ADMIN_TOKEN_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch (_) {
+  } catch  {
     return null;
   }
 }
@@ -25,7 +25,7 @@ export function readAdminAuth() {
 export function writeAdminAuth(payload) {
   try {
     localStorage.setItem(ADMIN_TOKEN_KEY, JSON.stringify(payload));
-  } catch (_) {
+  } catch  {
     // ignore storage failures
   }
 }
@@ -33,7 +33,7 @@ export function writeAdminAuth(payload) {
 export function clearAdminAuth() {
   try {
     localStorage.removeItem(ADMIN_TOKEN_KEY);
-  } catch (_) {
+  } catch  {
     // ignore storage failures
   }
 }
@@ -53,7 +53,7 @@ async function request(path, { method = "GET", body } = {}) {
     let payload = null;
     try {
       payload = await res.json();
-    } catch (_) {
+    } catch  {
       // no JSON body
     }
     const err = new Error((payload && payload.message) || `Request failed (${res.status})`);

@@ -7,7 +7,7 @@ const STORAGE_KEY = "siperp_master_key";
 export function getMasterKey() {
   try {
     return sessionStorage.getItem(STORAGE_KEY) || "";
-  } catch (_) {
+  } catch  {
     return "";
   }
 }
@@ -15,7 +15,7 @@ export function getMasterKey() {
 function storeMasterKey(key) {
   try {
     sessionStorage.setItem(STORAGE_KEY, key);
-  } catch (_) {
+  } catch  {
     // Worst case it just gets asked for again next request — never block on this.
   }
 }
@@ -37,7 +37,7 @@ export function masterKeyHeader() {
 export function clearMasterKey() {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
-  } catch (_) {
+  } catch  {
     // ignore
   }
 }

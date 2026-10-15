@@ -132,7 +132,7 @@ export default function Topbar({ onMenuClick }) {
       try {
         const r = await api.get(`/api/search?q=${encodeURIComponent(value.trim())}`);
         setSearchResults(r.results || []);
-      } catch (_e) {
+      } catch  {
         setSearchResults([]);
       } finally {
         setSearchLoading(false);
@@ -171,7 +171,7 @@ export default function Topbar({ onMenuClick }) {
         const r = await api.get("/api/reminders");
         setNotifications((r.items || []).slice(0, 6));
         setNotifTotal((r.counts && r.counts.total) || 0);
-      } catch (_e) {
+      } catch  {
         setNotifications([]);
       } finally {
         setLoadingNotifs(false);

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import Icon from "../ui/Icon";
+import useTableStyle from "../../hooks/useTableStyle";
 
 // Recognizes "10 Aug 2026" and "2026-09-30" specifically — not just "any
 // string containing digits" — so things like "30 Days" or a PO number don't
@@ -55,6 +56,8 @@ export default function DataTable({
   // "cards" draws every row as its own soft card (the redesigned list pages).
   variant,
 }) {
+  const globalStyle = useTableStyle();
+  const effectiveVariant = variant !== undefined ? variant : (globalStyle === "cards" ? "cards" : undefined);
   const [sort, setSort] = useState(null); // { key, dir: "asc" | "desc" }
   const selectable = Boolean(selectedIds && onSelectionChange);
 
@@ -102,8 +105,8 @@ export default function DataTable({
   const colSpan = columns.length + (selectable ? 1 : 0);
 
   return (
-    <div className="data-table-wrap">
-      <table className={`data-table${variant === "cards" ? " data-table-cards" : ""}`}>
+    <div className={`data-table-wrap${effectiveVariant === "cards" ? " data-table-cards-wrap" : ""}`}>
+      <table className={`data-table${effectiveVariant === "cards" ? " data-table-cards" : ""}`}>
         <thead>
           <tr>
             {selectable && (

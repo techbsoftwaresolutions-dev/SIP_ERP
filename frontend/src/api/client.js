@@ -32,7 +32,7 @@ export function authHeaders() {
     const raw = localStorage.getItem("siperp_auth");
     const token = raw ? JSON.parse(raw)?.token : "";
     return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch (_) {
+  } catch  {
     // Private windows and blocked site data both throw here.
     return {};
   }
@@ -57,7 +57,7 @@ async function doFetch(path, options = {}) {
     try {
       body = await res.json();
       message = (body && body.message) || message;
-    } catch (_) {
+    } catch  {
       // ignore
     }
 
@@ -184,7 +184,7 @@ export function readSwr(path) {
   try {
     const v = sessionStorage.getItem(swrKey(path));
     return v ? JSON.parse(v) : null;
-  } catch (_) {
+  } catch  {
     return null;
   }
 }
@@ -192,7 +192,7 @@ export function readSwr(path) {
 export function writeSwr(path, data) {
   try {
     sessionStorage.setItem(swrKey(path), JSON.stringify(data));
-  } catch (_) {
+  } catch  {
     // storage full or unavailable — caching is only an optimisation
   }
 }
@@ -202,7 +202,7 @@ export function clearSwrCache() {
     Object.keys(sessionStorage)
       .filter((k) => k.startsWith(SWR_PREFIX))
       .forEach((k) => sessionStorage.removeItem(k));
-  } catch (_) {
+  } catch  {
     // ignore
   }
 }
@@ -237,7 +237,7 @@ export const api = {
       let message = "The download failed. Please try again.";
       try {
         message = (await res.json()).message || message;
-      } catch (_) {
+      } catch  {
         // not JSON — keep the generic message
       }
       // Same rule as every other call: a rejected session ends the session.

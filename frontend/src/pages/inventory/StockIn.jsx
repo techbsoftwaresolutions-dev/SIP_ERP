@@ -10,8 +10,9 @@ export default function StockIn() {
     { key: "supplier", header: "Supplier", render: (r) => r.supplier || "—" },
     { key: "product", header: "Product", render: (r) => <span className="cell-primary">{r.product}</span> },
     { key: "batchNo", header: "Batch No.", render: (r) => r.batchNo || "—" },
-    { key: "quantity", header: "Received Qty", render: (r) => (r.quantity || 0).toLocaleString("en-IN") },
-    { key: "acceptedQty", header: "Accepted Qty", render: (r) => (r.acceptedQty || 0).toLocaleString("en-IN") },
+    { key: "quantity", header: "Received Qty", render: (r) => `${(r.quantity || 0).toLocaleString("en-IN")} ${r.unit || "Nos"}` },
+    { key: "acceptedQty", header: "Accepted Qty", render: (r) => `${(r.acceptedQty || 0).toLocaleString("en-IN")} ${r.unit || "Nos"}` },
+    { key: "warehouse", header: "Warehouse" },
     { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status || "Pending QC"} /> },
   ];
 

@@ -13,7 +13,7 @@ const STAGE_MIN_VIEWPORT = 900;
 function readRemembered() {
   try {
     return localStorage.getItem(REMEMBER_KEY) || "";
-  } catch (_) {
+  } catch  {
     return "";
   }
 }
@@ -225,7 +225,7 @@ export default function Login() {
       try {
         if (remember) localStorage.setItem(REMEMBER_KEY, username.trim());
         else localStorage.removeItem(REMEMBER_KEY);
-      } catch (_) {
+      } catch  {
         // ignore storage failures
       }
       navigate(from, { replace: true });

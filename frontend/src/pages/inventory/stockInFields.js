@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../../api/client";
 
 export const STATUS_OPTIONS = ["Pending QC", "Completed", "Rejected"];
+export const UNITS = ["Nos", "Pcs", "Box", "Kg", "Litre", "Set", "Roll", "Sheet", "Mtr", "Pair"];
 
 // Loads the live Product/Supplier/Warehouse lists the Stock In form's
 // dropdowns draw from. Warehouse also gets a create-inline helper — POSTs a
@@ -32,13 +33,33 @@ export function useStockInLookups() {
 // standalone Add and Edit pages, so the two never drift apart.
 export function buildStockInFields({ products, suppliers, warehouses, onCreateWarehouse }) {
   return [
-    { key: "product", label: "Product", type: "combo", required: true, options: products.map((p) => p.name) },
+    {
+      key: "product",
+      label: "Product",
+      type: "combo",
+      required: true,
+      options: products.map((p) => p.name),
+      onValueChange: (val, { fill, hint }) => {
+        const match = products.find((p) => p.name === val);
+        if (match) {
+          fill({
+            unit: match.unit || "Nos",
+            warehouse: match.warehouse || "Main Warehouse",
+            batchNo: match.batchNo || "",
+          });
+          hint(`In Stock: ${(match.qty || 0).toLocaleString("en-IN")} ${match.unit || "Nos"} in ${match.warehouse || "Main Warehouse"}`);
+        } else {
+          hint("");
+        }
+      },
+    },
     { key: "supplier", label: "Supplier", type: "combo", options: suppliers.map((s) => s.name) },
     { key: "poNumber", label: "Purchase Order No", placeholder: "Enter your purchase order no" },
     { key: "grnNumber", label: "GRN No.", placeholder: "Enter your GRN number" },
     { key: "batchNo", label: "Batch No.", placeholder: "Enter your batch number" },
-    { key: "quantity", label: "Received Qty", type: "number", placeholder: "Enter your received quantity" },
+    { key: "quantity", label: "Received Qty", type: "number", required: true, placeholder: "Enter your received quantity" },
     { key: "acceptedQty", label: "Accepted Qty", type: "number", placeholder: "Enter your accepted quantity" },
+    { key: "unit", label: "Unit", type: "select", options: UNITS },
     {
       key: "warehouse",
       label: "Warehouse",

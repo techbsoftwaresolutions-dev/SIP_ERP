@@ -8,6 +8,7 @@ import Loader from "../../components/ui/Loader";
 import SendWhatsAppButton from "../../components/share/SendWhatsAppButton";
 import CopiesPicker from "../../components/share/CopiesPicker";
 import { buildDocCsv, copyCount, copyLabelList, downloadCsvText } from "../../utils/docExport";
+import { exportDeliveryChallanExcel } from "../../utils/excelExport";
 
 const COPY_LABELS = ["ORIGINAL — FOR CONSIGNEE", "DUPLICATE — FOR TRANSPORTER", "TRIPLICATE — FOR CONSIGNOR"];
 
@@ -411,62 +412,12 @@ export default function DeliveryChallanPrint() {
 
   const handleDownloadExcel = () => {
     if (!dc) return;
-    const stateCode = getStateCode(customer?.state);
-    const qty = Number(dc.dispatchedQty) || 0;
-
-    const cell = (value, opts = {}) => {
-      const { bold, right, colspan, bg } = opts;
-      const isNum = typeof value === "number";
-      const styles = [
-        "border:1px solid #cccccc",
-        "padding:5px 10px",
-        "font-family:Arial,sans-serif",
-        "font-size:12px",
-        right || isNum ? "text-align:right" : "text-align:left",
-        bold ? "font-weight:bold" : "",
-        bg ? `background:${bg}` : "",
-        isNum ? "mso-number-format:'\\#\\,\\#\\#0.00'" : "mso-number-format:'\\@'",
-      ]
-        .filter(Boolean)
-        .join(";");
-      return `<td${colspan ? ` colspan="${colspan}"` : ""} style="${styles}">${value ?? ""}</td>`;
-    };
-    const row = (cells) => `<tr>${cells}</tr>`;
-    const labelRow = (k, v) => row(cell(k, { bold: true }) + cell(v, { colspan: 2 }));
-    const blankRow = () => row(cell("", { colspan: 3 }));
-
-    const copySection = (label) => {
-      const parts = [];
-      parts.push(row(cell(`DELIVERY CHALLAN — ${label}`, { bold: true, colspan: 3, bg: "#1c222c" })));
-      parts.push(blankRow());
-      parts.push(labelRow("DC Number", dc.id));
-      parts.push(labelRow("DC Date", dc.date || "—"));
-      parts.push(labelRow("Customer", dc.customer || "—"));
-      parts.push(labelRow("Sales Order No", dc.salesOrder || "—"));
-      parts.push(labelRow("Transporter", dc.transporter || "—"));
-      parts.push(labelRow("Vehicle No.", dc.vehicleNo || "—"));
-      parts.push(labelRow("State Code", stateCode || "—"));
-      parts.push(blankRow());
-      parts.push(
-        row(
-          cell("#", { bold: true, bg: "#eef4ff" }) +
-            cell("Description", { bold: true, bg: "#eef4ff" }) +
-            cell("Qty / Unit", { bold: true, right: true, bg: "#eef4ff" })
-        )
-      );
-      parts.push(row(cell("1") + cell(dc.product || "—") + cell(`${qty} ${dc.unit || "Nos"}`, { right: true })));
-      parts.push(blankRow());
-      parts.push(row(cell("Delivery Status", { bold: true, colspan: 2, bg: "#17b6d9" }) + cell(dc.status || "Pending", { right: true, bold: true, bg: "#17b6d9" })));
-      parts.push(blankRow());
-      parts.push(blankRow());
-      return parts.join("");
-    };
-
-    const colgroup = `<colgroup><col style="width:180px"><col style="width:280px"><col style="width:160px"></colgroup>`;
-    const table = `<table style="border-collapse:collapse;">${colgroup}${copyLabels.map(copySection).join("")}</table>`;
-    const html = `<html><head><meta charset="utf-8"></head><body>${table}</body></html>`;
-    const blob = new Blob(["﻿", html], { type: "application/vnd.ms-excel" });
-    downloadBlob(blob, `delivery-challan-${dc.id}.xls`);
+    exportDeliveryChallanExcel({
+      dc,
+      customer,
+      settings,
+      copyLabels,
+    });
   };
 
   if (error) {

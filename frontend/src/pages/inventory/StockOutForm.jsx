@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/client";
 import PageHeader from "../../components/layout/PageHeader";
 import AddRecordForm from "../../components/forms/AddRecordForm";
@@ -13,26 +13,59 @@ export default function StockOutForm() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
-  const { products, warehouses, createWarehouse } = useStockOutLookups();
-  const [initialValues, setInitialValues] = useState(isEdit ? null : {});
+  const location = useLocation();
+  const { products, suppliers, customers, warehouses, createWarehouse } = useStockOutLookups();
+  const [initialValues, setInitialValues] = useState(() => {
+    if (isEdit) return null;
+    if (location.state) {
+      return {
+        product: location.state.product || "",
+        warehouse: location.state.warehouse || "",
+        unit: location.state.unit || "",
+        batchNo: location.state.batchNo || "",
+      };
+    }
+    return {};
+  });
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     if (!isEdit) return;
     api
       .get(`/api/inventory/stock-out/${encodeURIComponent(id)}`)
-      .then(setInitialValues)
+      .then((data) => {
+        if (data) {
+          if (!data.supplier && data.departmentOrCustomer) {
+            data.supplier = data.departmentOrCustomer;
+          }
+          if (!data.poNumber && data.referenceNo) {
+            data.poNumber = data.referenceNo;
+          }
+          setInitialValues(data);
+        }
+      })
       .catch(() => setLoadError("Could not load that stock out record."));
   }, [id, isEdit]);
 
-  const fields = buildStockOutFields({ products, warehouses, onCreateWarehouse: createWarehouse });
+  const fields = buildStockOutFields({
+    products,
+    suppliers,
+    customers,
+    warehouses,
+    onCreateWarehouse: createWarehouse,
+  });
 
   const handleSubmit = async (values) => {
+    const payload = {
+      ...values,
+      departmentOrCustomer: values.supplier || values.departmentOrCustomer || "",
+      referenceNo: values.poNumber || values.referenceNo || "",
+    };
     if (isEdit) {
-      await api.put(`/api/inventory/stock-out/${encodeURIComponent(id)}`, values);
+      await api.put(`/api/inventory/stock-out/${encodeURIComponent(id)}`, payload);
       navigate("/inventory/stock-out", { state: { toast: "Stock out updated." } });
     } else {
-      await api.post("/api/inventory/stock-out", values);
+      await api.post("/api/inventory/stock-out", payload);
       navigate("/inventory/stock-out", { state: { toast: "Stock out recorded." } });
     }
   };

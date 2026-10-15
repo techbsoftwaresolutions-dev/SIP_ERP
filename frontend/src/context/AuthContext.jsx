@@ -18,7 +18,7 @@ const EXPIRED_FLAG = "siperp_session_expired";
 export function markSessionExpired() {
   try {
     sessionStorage.setItem(EXPIRED_FLAG, "1");
-  } catch (_) {
+  } catch  {
     // A private window with storage disabled just loses the message.
   }
 }
@@ -30,7 +30,7 @@ export function takeSessionExpiredFlag() {
     const had = sessionStorage.getItem(EXPIRED_FLAG);
     if (had) sessionStorage.removeItem(EXPIRED_FLAG);
     return Boolean(had);
-  } catch (_) {
+  } catch  {
     return false;
   }
 }
@@ -45,7 +45,7 @@ function isExpired(payload) {
 function clearStoredAuth() {
   try {
     localStorage.removeItem(STORAGE_KEY);
-  } catch (_) {
+  } catch  {
     // ignore storage failures
   }
 }
@@ -61,7 +61,7 @@ function loadStoredAuth() {
       return null;
     }
     return parsed;
-  } catch (_) {
+  } catch  {
     return null;
   }
 }
@@ -159,7 +159,7 @@ export function AuthProvider({ children }) {
       const next = { ...prev, user: { ...prev.user, ...patch } };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch (_) {
+      } catch  {
         // ignore storage failures
       }
       return next;
@@ -177,7 +177,7 @@ export function AuthProvider({ children }) {
       const next = { ...prev, token, expiresAt, loginAt: Date.now() };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch (_) {
+      } catch  {
         // ignore storage failures
       }
       return next;

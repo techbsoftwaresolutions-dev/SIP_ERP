@@ -109,7 +109,7 @@ export default function PurchaseReturnForm({ mode, editingId, initial, suppliers
       if (inv) setInvoiceNumber(inv.id);
       setItems(buildLines({ po, gr, inv }));
       setLookup({ po: po ? "found" : lookup.po, gr: gr ? "found" : lookup.gr, inv: inv ? "found" : lookup.inv, [kind]: "found" });
-    } catch (err) {
+    } catch  {
       setLookupStatus({ [kind]: "not-found" });
     } finally {
       setLookupBusy("");

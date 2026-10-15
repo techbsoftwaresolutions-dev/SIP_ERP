@@ -50,8 +50,10 @@ export function downloadBlob(blob, filename) {
   a.download = safeFileName(filename);
   document.body.appendChild(a);
   a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 // Shares a print sheet as a PDF over WhatsApp or Email.

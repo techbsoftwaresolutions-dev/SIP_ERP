@@ -5,6 +5,7 @@ import Pagination from "../../components/data/Pagination";
 import usePaginatedData from "../../hooks/usePaginatedData";
 import Icon from "../../components/ui/Icon";
 import ExportButtons from "../../components/data/ExportButtons";
+import useTableStyle from "../../hooks/useTableStyle";
 
 const STATUS_META = {
   Normal: { icon: "checkCircle", label: "Normal" },
@@ -15,6 +16,7 @@ const STATUS_META = {
 export default function Inventory() {
   const { data, page, setPage, total, totalPages, loading } = usePaginatedData("/api/inventory", { pageSize: 8 });
   const navigate = useNavigate();
+  const tableStyle = useTableStyle();
 
   const detailHref = (r) => `/inventory/item/${encodeURIComponent(r.id)}`;
 
@@ -75,8 +77,14 @@ export default function Inventory() {
         }
       />
 
-      <div className="card">
-        <DataTable columns={columns} rows={data} loading={loading} emptyText="No stock records found." />
+      <div className={`card${tableStyle === "cards" ? " table-cards-mode" : ""}`}>
+        <DataTable
+          variant={tableStyle === "cards" ? "cards" : "classic"}
+          columns={columns}
+          rows={data}
+          loading={loading}
+          emptyText="No stock records found."
+        />
         <Pagination page={page} pageSize={8} total={total} totalPages={totalPages} onPageChange={setPage} />
       </div>
     </div>
