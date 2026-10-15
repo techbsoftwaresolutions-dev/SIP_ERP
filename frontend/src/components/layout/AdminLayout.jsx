@@ -22,6 +22,8 @@ const ADMIN_NAV = [
   { label: "Theme Management", icon: "palette", to: "/admin/themes" },
   { label: "Invoice Templates", icon: "printer", to: "/admin/invoice-templates" },
   { label: "Payment Methods", icon: "wallet", to: "/admin/payment-methods" },
+  { label: "Payment Gateway", icon: "lock", to: "/admin/payment-gateway" },
+  { label: "Transactions", icon: "banknote", to: "/admin/transactions" },
   { label: "Approval Engine", icon: "checkCircle", to: "/admin/approval-rules" },
   { label: "Notifications", icon: "bell", to: "/admin/notifications" },
   { label: "Global Roles", icon: "users", to: "/admin/global-roles" },

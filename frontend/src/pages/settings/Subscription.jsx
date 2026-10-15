@@ -45,6 +45,7 @@ export default function Subscription() {
   const [payingPlan, setPayingPlan] = useState(""); // planCode currently mid-checkout
   const [upgradeError, setUpgradeError] = useState("");
   const [upgradeToast, setUpgradeToast] = useState("");
+  const [menusCollapsed, setMenusCollapsed] = useState(true);
 
   const loadDetails = useCallback(() => api.get("/api/subscription/details").then(setDetails), []);
   const loadUpgrade = useCallback(() => {
@@ -87,14 +88,19 @@ export default function Subscription() {
         theme: { color: "#2563eb" },
         handler: async (response) => {
           try {
-            await api.post("/api/subscription/upgrade/verify", {
+            const verifyRes = await api.post("/api/subscription/upgrade/verify", {
               localOrderId: order.localOrderId,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
-            setUpgradeToast(`You're now on ${order.planName}.`);
-            setTimeout(() => setUpgradeToast(""), 4000);
+            const isRenew = Boolean(verifyRes?.isRenewal || order.isRenewal);
+            setUpgradeToast(
+              isRenew
+                ? `Subscription successfully renewed for ${order.planName} (${order.termMonths} mo)!`
+                : `You're now on ${order.planName}.`
+            );
+            setTimeout(() => setUpgradeToast(""), 5000);
             await Promise.all([loadDetails(), loadUpgrade()]);
           } catch (err) {
             setUpgradeError(
@@ -132,19 +138,100 @@ export default function Subscription() {
     );
   }
 
-  const upgradePlans = (upgrade?.plans || []).filter((p) => p.isUpgrade);
+  const upgradePlans = (upgrade?.plans || []).filter((p) => p.isUpgrade || p.isCurrent || !details.planName);
 
   if (!details.planName) {
     return (
-      <div>
-        <PageHeader title="My Subscription" crumbs={crumbs} />
-        <div className="list-card">
-          <div className="section-title">No plan assigned</div>
-          <p className="field-hint" style={{ marginTop: 0 }}>
-            This account has no subscription plan set up yet. Contact{" "}
-            <strong>TechB Software Solutions</strong> to get one assigned.
+      <div className="sb-page">
+        <PageHeader
+          title="My Subscription"
+          subtitle="Choose a subscription plan to activate your account"
+          crumbs={crumbs}
+          actions={
+            <span className="sb-status off">
+              <Icon name="alertCircle" size={16} /> No Plan Active
+            </span>
+          }
+        />
+        {upgradeToast && <Toast message={upgradeToast} />}
+
+        <div className="list-card" style={{ marginBottom: 24, borderLeft: "4px solid #3b82f6" }}>
+          <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Icon name="sparkles" size={18} /> Activate Your Subscription
+          </div>
+          <p className="field-hint" style={{ marginTop: 0, marginBottom: 0, fontSize: "0.95rem" }}>
+            Select your preferred plan and term below. Payment is processed securely via <strong>Razorpay</strong> and activates your plan immediately.
           </p>
         </div>
+
+        {upgradePlans.length > 0 ? (
+          <section className="sb-card sb-upgrade">
+            <header className="sb-card-head">
+              <span className="sb-tile sm blue"><Icon name="tag" size={18} /></span>
+              <div>
+                <h2>Available Plans</h2>
+                <p>Pick a term and plan to activate your account immediately.</p>
+              </div>
+            </header>
+
+            {upgrade?.termMonths && (
+              <div className="sb-terms">
+                {upgrade.termMonths.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`sb-term${selectedTerm === m ? " active" : ""}`}
+                    onClick={() => setSelectedTerm(m)}
+                  >
+                    {m === 1 ? "1 month" : m % 12 === 0 ? `${m / 12} year${m > 12 ? "s" : ""}` : `${m} months`}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!upgrade?.configured && (
+              <div className="sb-notice">
+                <Icon name="alertTriangle" size={15} /> Online payments are being configured. Contact{" "}
+                <strong>TechB Software Solutions</strong>.
+              </div>
+            )}
+            {upgradeError && <div className="login-error" style={{ marginBottom: 12 }}>{upgradeError}</div>}
+
+            <div className="sb-plans">
+              {upgradePlans.map((p) => {
+                const total = p.price * selectedTerm;
+                const busy = payingPlan === p.code;
+                return (
+                  <div key={p.code} className="sb-plan">
+                    <div className="sb-plan-name">{p.name}</div>
+                    <div className="sb-plan-price">{inr(p.price)} <span>/ month</span></div>
+                    <div className="sb-plan-total">{inr(total)} for {selectedTerm} month{selectedTerm === 1 ? "" : "s"}</div>
+                    {p.description && <p className="sb-plan-desc">{p.description}</p>}
+                    {p.features?.length > 0 && (
+                      <ul className="sb-plan-features">
+                        {p.features.map((f, i) => (
+                          <li key={i}><Icon name="check" size={13} /> {f}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-primary sb-plan-btn"
+                      disabled={!upgrade?.configured || busy || Boolean(payingPlan)}
+                      onClick={() => startUpgrade(p)}
+                    >
+                      {busy ? "Opening checkout…" : `Select & Pay ${inr(total)}`}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : (
+          <div className="list-card">
+            <p className="field-hint">No plans are currently published. Contact <strong>TechB Software Solutions</strong>.</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -233,35 +320,85 @@ export default function Subscription() {
       </section>
 
       <section className="sb-card">
-        <header className="sb-card-head">
-          <span className="sb-tile sm blue"><Icon name="menu" size={18} /></span>
-          <div>
-            <h2>Menu Access</h2>
-            <p>Which screens are included on your plan. A menu marked "Not on this plan" is hidden from your sidebar.</p>
-          </div>
-        </header>
-        <div className="sb-menus">
-          {details.menus.map((m) => (
-            <div key={m.key} className="sb-menu-row">
-              <div className="sb-menu-head">
-                <span className="sb-menu-name">
-                  <Icon name={MENU_ICON[m.key] || "settings"} size={18} /> {m.label}
-                </span>
-                <span className={`sb-pill ${m.access}`}>{ACCESS_LABEL[m.access]}</span>
+        <header
+          className="sb-card-head"
+          style={{
+            cursor: "pointer",
+            userSelect: "none",
+            marginBottom: menusCollapsed ? 0 : 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            transition: "all 0.2s ease",
+          }}
+          onClick={() => setMenusCollapsed((v) => !v)}
+          title={menusCollapsed ? "Click to expand menu access" : "Click to collapse menu access"}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <span className="sb-tile sm blue"><Icon name="menu" size={18} /></span>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <h2 style={{ margin: 0 }}>Menu Access</h2>
+                {details.menus && (
+                  <span className="sb-pill full" style={{ fontSize: 11, padding: "2px 10px" }}>
+                    {details.menus.filter((m) => m.access !== "none").length} of {details.menus.length} Included
+                  </span>
+                )}
               </div>
-              {m.children && m.access === "partial" && (
-                <div className="sb-menu-children">
-                  {m.children.map((c) => (
-                    <span key={c.key} className={`mysub-chip${c.allowed ? " on" : ""}`}>
-                      {c.allowed ? <Icon name="check" size={11} /> : <Icon name="close" size={11} />}
-                      {c.label}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <p style={{ margin: "4px 0 0" }}>
+                Which screens are included on your plan. A menu marked "Not on this plan" is hidden from your sidebar.
+              </p>
             </div>
-          ))}
-        </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 14px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "var(--card)",
+              flexShrink: 0,
+              cursor: "pointer",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenusCollapsed((v) => !v);
+            }}
+            aria-expanded={!menusCollapsed}
+          >
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{menusCollapsed ? "Expand" : "Collapse"}</span>
+            <Icon name={menusCollapsed ? "chevronDown" : "chevronUp"} size={16} />
+          </button>
+        </header>
+        {!menusCollapsed && (
+          <div className="sb-menus">
+            {details.menus.map((m) => (
+              <div key={m.key} className="sb-menu-row">
+                <div className="sb-menu-head">
+                  <span className="sb-menu-name">
+                    <Icon name={MENU_ICON[m.key] || "settings"} size={18} /> {m.label}
+                  </span>
+                  <span className={`sb-pill ${m.access}`}>{ACCESS_LABEL[m.access]}</span>
+                </div>
+                {m.children && m.access === "partial" && (
+                  <div className="sb-menu-children">
+                    {m.children.map((c) => (
+                      <span key={c.key} className={`mysub-chip${c.allowed ? " on" : ""}`}>
+                        {c.allowed ? <Icon name="check" size={11} /> : <Icon name="close" size={11} />}
+                        {c.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="sb-card">
@@ -296,13 +433,13 @@ export default function Subscription() {
           <header className="sb-card-head">
             <span className="sb-tile sm blue"><Icon name="sparkles" size={18} /></span>
             <div>
-              <h2>Upgrade Your Plan</h2>
-              <p>Pick a term, then upgrade — it takes effect immediately and starts a new billing period from today.</p>
+              <h2>Top Up or Upgrade Your Plan</h2>
+              <p>Top up your current plan or upgrade to a higher tier — payment takes effect immediately via Razorpay.</p>
             </div>
           </header>
 
           <div className="sb-terms">
-            {upgrade.termMonths.map((m) => (
+            {upgrade?.termMonths && upgrade.termMonths.map((m) => (
               <button
                 key={m}
                 type="button"
@@ -314,10 +451,10 @@ export default function Subscription() {
             ))}
           </div>
 
-          {!upgrade.configured && (
+          {!upgrade?.configured && (
             <div className="sb-notice">
-              <Icon name="alertTriangle" size={15} /> Online upgrades aren't set up yet. Contact{" "}
-              <strong>TechB Software Solutions</strong> to upgrade.
+              <Icon name="alertTriangle" size={15} /> Online payments are being configured. Contact{" "}
+              <strong>TechB Software Solutions</strong>.
             </div>
           )}
           {upgradeError && <div className="login-error" style={{ marginBottom: 12 }}>{upgradeError}</div>}
@@ -328,11 +465,19 @@ export default function Subscription() {
               const busy = payingPlan === p.code;
               return (
                 <div key={p.code} className="sb-plan">
-                  <div className="sb-plan-name">{p.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <div className="sb-plan-name">{p.name}</div>
+                    {p.isCurrent && (
+                      <span className="sb-pill full" style={{ fontSize: 11 }}>Current Plan</span>
+                    )}
+                    {p.isUpgrade && (
+                      <span className="sb-pill partial" style={{ fontSize: 11 }}>Upgrade</span>
+                    )}
+                  </div>
                   <div className="sb-plan-price">{inr(p.price)} <span>/ month</span></div>
                   <div className="sb-plan-total">{inr(total)} for {selectedTerm} month{selectedTerm === 1 ? "" : "s"}</div>
                   {p.description && <p className="sb-plan-desc">{p.description}</p>}
-                  {p.features.length > 0 && (
+                  {p.features?.length > 0 && (
                     <ul className="sb-plan-features">
                       {p.features.map((f, i) => (
                         <li key={i}><Icon name="check" size={13} /> {f}</li>
@@ -342,10 +487,14 @@ export default function Subscription() {
                   <button
                     type="button"
                     className="btn btn-primary sb-plan-btn"
-                    disabled={!upgrade.configured || busy || Boolean(payingPlan)}
+                    disabled={!upgrade?.configured || busy || Boolean(payingPlan)}
                     onClick={() => startUpgrade(p)}
                   >
-                    {busy ? "Opening checkout…" : `Upgrade & Pay ${inr(total)}`}
+                    {busy
+                      ? "Opening checkout…"
+                      : p.isCurrent
+                      ? `Top Up / Renew for ${inr(total)}`
+                      : `Upgrade & Pay ${inr(total)}`}
                   </button>
                 </div>
               );

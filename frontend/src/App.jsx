@@ -141,6 +141,8 @@ const ThemeForm = lazy(() => import("./pages/admin/ThemeForm"));
 const InvoiceTemplates = lazy(() => import("./pages/admin/InvoiceTemplates"));
 const PaymentMethods = lazy(() => import("./pages/admin/PaymentMethods"));
 const PaymentMethodForm = lazy(() => import("./pages/admin/PaymentMethodForm"));
+const PaymentGateway = lazy(() => import("./pages/admin/PaymentGateway"));
+const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const ApprovalRules = lazy(() => import("./pages/admin/ApprovalRules"));
 const ApprovalRuleForm = lazy(() => import("./pages/admin/ApprovalRuleForm"));
 const Notifications = lazy(() => import("./pages/admin/Notifications"));
@@ -219,6 +221,8 @@ function App() {
                 <Route path="/admin/payment-methods" element={<PaymentMethods />} />
                 <Route path="/admin/payment-methods/new" element={<PaymentMethodForm />} />
                 <Route path="/admin/payment-methods/:code/edit" element={<PaymentMethodForm />} />
+                <Route path="/admin/payment-gateway" element={<PaymentGateway />} />
+                <Route path="/admin/transactions" element={<Transactions />} />
                 <Route path="/admin/approval-rules" element={<ApprovalRules />} />
                 <Route path="/admin/approval-rules/new" element={<ApprovalRuleForm />} />
                 <Route path="/admin/approval-rules/:code/edit" element={<ApprovalRuleForm />} />

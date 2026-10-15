@@ -5,6 +5,7 @@
   "description": "Marketing website for SIPERP (Smart Industry Platform), served at siperp.in",
   "type": "module",
   "scripts": {
+    "dev": "node build.mjs --dev && node serve.mjs",
     "build": "node build.mjs",
     "start": "node build.mjs --dev && node serve.mjs",
     "serve": "node serve.mjs"

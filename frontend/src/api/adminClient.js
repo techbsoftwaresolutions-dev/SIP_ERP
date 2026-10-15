@@ -4,7 +4,11 @@
 // acting-user headers for a client's own data, this one carries a super-admin
 // bearer token and no tenant at all. Keeping them apart means a 401 on one
 // side can never sign the user out of the other.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:5000"
+    : "");
 
 export const ADMIN_TOKEN_KEY = "siperp_admin_auth";
 export const ADMIN_AUTH_FAILED_EVENT = "siperp:admin-auth-failed";

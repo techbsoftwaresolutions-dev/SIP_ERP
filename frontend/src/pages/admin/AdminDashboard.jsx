@@ -52,7 +52,7 @@ export default function AdminDashboard() {
     );
   }
 
-  const { stats, planSpread, expiringSoon, recentClients } = data;
+  const { stats, planSpread, expiringSoon, recentClients, recentOrders = [] } = data;
 
   const expiringColumns = [
     {
@@ -170,20 +170,68 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="dash-card">
-        <div className="dash-card-head">
-          <div className="dash-card-title">
-            <Icon name="users" size={16} /> Recently Added Clients
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div className="dash-card">
+          <div className="dash-card-head">
+            <div className="dash-card-title">
+              <Icon name="users" size={16} /> Recently Added Clients
+            </div>
+            <Link to="/admin/clients" className="dash-viewall">
+              View All <Icon name="chevronRight" size={13} />
+            </Link>
           </div>
-          <Link to="/admin/clients" className="dash-viewall">
-            View All <Icon name="chevronRight" size={13} />
-          </Link>
+          {recentClients.length === 0 ? (
+            <div className="dash-empty">No clients yet.</div>
+          ) : (
+            <DataTable columns={recentColumns} rows={recentClients} />
+          )}
         </div>
-        {recentClients.length === 0 ? (
-          <div className="dash-empty">No clients yet.</div>
-        ) : (
-          <DataTable columns={recentColumns} rows={recentClients} />
-        )}
+
+        <div className="dash-card">
+          <div className="dash-card-head">
+            <div className="dash-card-title">
+              <Icon name="banknote" size={16} /> Recent Transactions
+            </div>
+            <Link to="/admin/transactions" className="dash-viewall">
+              View All <Icon name="chevronRight" size={13} />
+            </Link>
+          </div>
+          {(!recentOrders || recentOrders.length === 0) ? (
+            <div className="dash-empty">No subscription payments yet.</div>
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  key: "companyName",
+                  header: "Client",
+                  render: (r) => (
+                    <div>
+                      <span className="cell-primary">{r.companyName || r.tenantSubdomain}</span>
+                    </div>
+                  ),
+                },
+                { key: "planName", header: "Plan", render: (r) => r.planName },
+                {
+                  key: "amountPayable",
+                  header: "Amount",
+                  render: (r) => <strong style={{ color: "var(--text)" }}>{inr(r.amountPayable)}</strong>,
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (r) => (
+                    <StatusBadge
+                      status={r.status === "paid" ? "Active" : r.status === "failed" ? "Disabled" : "Pending"}
+                      label={r.status === "paid" ? "Paid" : r.status}
+                    />
+                  ),
+                },
+                { key: "createdAt", header: "Date", render: (r) => fmtDate(r.createdAt) },
+              ]}
+              rows={recentOrders}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -7718,7 +7718,7 @@ a.dash-cust-name:hover { text-decoration: underline; }
   background-repeat: no-repeat;
   font-family: inherit;
 }
-.tb-card-slot { position: absolute; left: 943px; top: 150px; width: 504px; height: 773px; }
+.tb-card-slot { position: absolute; left: 943px; top: 120px; width: 504px; min-height: 773px; }
 
 .tb-card {
   --tb-blue: #0b63f6;
@@ -7726,43 +7726,64 @@ a.dash-cust-name:hover { text-decoration: underline; }
   position: relative;
   box-sizing: border-box;
   width: 504px;
-  height: 773px;
-  padding: 62px 45px 0 46px;
+  min-height: 773px;
+  height: auto;
+  padding: 42px 42px 36px 42px;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 18px 50px rgba(36, 76, 160, 0.13);
   color: var(--tb-navy);
 }
-.tb-card-mark { height: 48px; display: flex; justify-content: center; }
-.tb-card h2 { margin: 26px 0 0; height: 40px; line-height: 40px; text-align: center; font-size: 34px; font-weight: 700; letter-spacing: -0.3px; }
-.tb-card-sub { margin: 7px 0 0; height: 24px; line-height: 24px; text-align: center; font-size: 18px; color: #5a6a85; }
-.tb-msg { position: absolute; left: 46px; right: 46px; top: 212px; height: 24px; line-height: 24px; text-align: center; font-size: 13px; color: #5a6a85; }
-.tb-msg.err { color: #d33; }
-.tb-label { display: block; height: 20px; line-height: 20px; margin: 35px 0 0; font-size: 15px; font-weight: 600; }
-.tb-label.pw { margin-top: 24px; }
-.tb-input { display: flex; align-items: center; box-sizing: border-box; height: 50px; margin-top: 10px; border: 1px solid #d9e0ec; border-radius: 8px; background: #fff; transition: border-color 0.15s, box-shadow 0.15s; }
+.tb-card-mark { height: 44px; display: flex; justify-content: center; }
+.tb-card h2 { margin: 18px 0 0; line-height: 38px; text-align: center; font-size: 32px; font-weight: 700; letter-spacing: -0.3px; }
+.tb-card-sub { margin: 4px 0 0; line-height: 22px; text-align: center; font-size: 16px; color: #5a6a85; }
+.tb-msg {
+  box-sizing: border-box;
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f0f4ff;
+  border: 1px solid #d0e0ff;
+  text-align: center;
+  font-size: 13px;
+  line-height: 18px;
+  color: #1e3a8a;
+  word-break: break-word;
+}
+.tb-msg.err {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.tb-label { display: block; height: 20px; line-height: 20px; margin: 24px 0 0; font-size: 14px; font-weight: 600; }
+.tb-label.compact { margin-top: 14px; }
+.tb-label.pw { margin-top: 18px; }
+.tb-input { display: flex; align-items: center; box-sizing: border-box; height: 48px; margin-top: 6px; border: 1px solid #d9e0ec; border-radius: 8px; background: #fff; transition: border-color 0.15s, box-shadow 0.15s; }
 .tb-input:focus-within { border-color: var(--tb-blue); box-shadow: 0 0 0 3px rgba(11, 99, 246, 0.12); }
-.tb-input-icon { width: 54px; padding-left: 17px; box-sizing: border-box; color: #56657f; display: flex; align-items: center; }
+.tb-input-icon { width: 48px; padding-left: 15px; box-sizing: border-box; color: #56657f; display: flex; align-items: center; }
 .tb-input input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; padding: 0; font-size: 15px; color: var(--tb-navy); font-family: inherit; }
 .tb-input input::placeholder { color: #98a3b8; }
-.tb-input-toggle { width: 46px; height: 100%; border: 0; background: transparent; color: #56657f; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
-.tb-row { display: flex; align-items: center; justify-content: space-between; height: 24px; margin-top: 23px; font-size: 14px; }
+.tb-input-toggle { width: 44px; height: 100%; border: 0; background: transparent; color: #56657f; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.tb-row { display: flex; align-items: center; justify-content: space-between; height: 24px; margin-top: 18px; font-size: 14px; }
 .tb-row a { color: var(--tb-blue); text-decoration: none; }
-.tb-remember { display: flex; align-items: center; gap: 12px; cursor: pointer; color: #2b3a57; }
-.tb-remember input { width: 18px; height: 18px; margin: 0; accent-color: var(--tb-blue); }
-.tb-submit { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 50px; margin-top: 28px; border: 0; border-radius: 8px; background: var(--tb-blue); color: #fff; font-size: 17px; font-weight: 600; font-family: inherit; cursor: pointer; }
+.tb-remember { display: flex; align-items: center; gap: 10px; cursor: pointer; color: #2b3a57; font-size: 14px; }
+.tb-remember input { width: 17px; height: 17px; margin: 0; accent-color: var(--tb-blue); }
+.tb-submit { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 48px; margin-top: 22px; border: 0; border-radius: 8px; background: var(--tb-blue); color: #fff; font-size: 16px; font-weight: 600; font-family: inherit; cursor: pointer; }
 .tb-submit:hover:not(:disabled) { background: #0850cc; }
 .tb-submit:disabled { opacity: 0.7; cursor: default; }
-.tb-or { position: relative; height: 20px; margin-top: 21px; text-align: center; font-size: 13px; color: #7d879b; line-height: 20px; }
+.tb-or { position: relative; height: 20px; margin-top: 18px; text-align: center; font-size: 13px; color: #7d879b; line-height: 20px; }
 .tb-or::before, .tb-or::after { content: ""; position: absolute; top: 10px; width: 183px; height: 1px; background: #d9e0ec; }
 .tb-or::before { left: 0; }
 .tb-or::after { right: 0; }
 .tb-or span { background: #fff; padding: 0 6px; position: relative; }
-.tb-google { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; height: 45px; margin-top: 18px; box-sizing: border-box; border: 1px solid #dde3ee; border-radius: 8px; background: #fff; color: #1c2a48; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
+.tb-google { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; height: 45px; margin-top: 16px; box-sizing: border-box; border: 1px solid #dde3ee; border-radius: 8px; background: #fff; color: #1c2a48; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
 .tb-google:hover { background: #f8faff; }
+.tb-switch-mode { margin-top: 16px; text-align: center; font-size: 14px; color: #5a6a85; }
+.tb-switch-mode button { background: none; border: none; color: var(--tb-blue); font-weight: 600; cursor: pointer; padding: 0 4px; font-size: inherit; font-family: inherit; text-decoration: underline; }
+.tb-switch-mode button:hover { color: #0850cc; }
 .tb-copy a { color: #5a6a85; text-decoration: underline; }
 .tb-copy a:hover { color: var(--tb-blue); }
-.tb-copy { margin-top: 44px; text-align: center; font-size: 12.5px; line-height: 17px; color: #7d879b; }
+.tb-copy { margin-top: 24px; text-align: center; font-size: 12px; line-height: 16px; color: #7d879b; }
 
 /* Below the design width the photo hero is dropped and only the card shows. */
 .tb-login-mobile {

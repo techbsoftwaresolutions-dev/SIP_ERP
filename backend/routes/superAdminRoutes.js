@@ -12,7 +12,10 @@ const {
   getTenantRegistryModel,
   getPlanModel,
   getSubscriptionOrderModel,
+  getPaymentGatewayConfigModel,
+  getAdminAuditLogModel,
 } = require("../tenancy/tenantModels");
+const razorpay = require("../services/razorpayClient");
 const {
   hashPassword,
   verifyPassword,
@@ -360,6 +363,219 @@ function registerSuperAdminRoutes(app, { asyncHandler }) {
     asyncHandler(async (req, res) => {
       await getAdminSessionModel().deleteOne({ _id: req.params.id });
       res.json({ success: true });
+    })
+  );
+
+  // ---- Payment Gateway (Razorpay) configuration ---------------------------
+
+  function maskSecret(s) {
+    if (!s) return "";
+    if (s.length < 8) return "••••••••";
+    return s.slice(0, 4) + "••••••••" + s.slice(-4);
+  }
+
+  router.get(
+    "/payment-gateway",
+    requireSuperAdmin,
+    asyncHandler(async (_req, res) => {
+      const config = await razorpay.getActiveConfig();
+      const isConfigured = await razorpay.isConfigured();
+
+      res.json({
+        gateway: "razorpay",
+        enabled: config.enabled,
+        keyId: config.keyId || "",
+        hasKeySecret: Boolean(config.keySecret),
+        keySecretMasked: maskSecret(config.keySecret),
+        webhookSecret: config.webhookSecret || "",
+        companyName: config.companyName || "SIPERP",
+        themeColor: config.themeColor || "#2563eb",
+        isDbConfigured: config.isDbConfigured,
+        isConfigured,
+        isTestMode: (config.keyId || "").startsWith("rzp_test_"),
+      });
+    })
+  );
+
+  router.put(
+    "/payment-gateway",
+    requireSuperAdmin,
+    asyncHandler(async (req, res) => {
+      const { keyId, keySecret, webhookSecret, enabled, companyName, themeColor } = req.body || {};
+      const PaymentGatewayConfig = getPaymentGatewayConfigModel();
+
+      let record = await PaymentGatewayConfig.findOne({ gateway: "razorpay" });
+      if (!record) {
+        record = new PaymentGatewayConfig({ gateway: "razorpay" });
+      }
+
+      if (keyId !== undefined) record.keyId = String(keyId).trim();
+      if (keySecret !== undefined && String(keySecret).trim() && !String(keySecret).includes("••••")) {
+        record.keySecret = String(keySecret).trim();
+      }
+      if (webhookSecret !== undefined) record.webhookSecret = String(webhookSecret).trim();
+      if (enabled !== undefined) record.enabled = Boolean(enabled);
+      if (companyName !== undefined) record.companyName = String(companyName).trim() || "SIPERP";
+      if (themeColor !== undefined) record.themeColor = String(themeColor).trim() || "#2563eb";
+      record.updatedBy = req.superAdmin?.name || "Admin";
+
+      await record.save();
+      razorpay.invalidateConfigCache();
+
+      try {
+        const AdminAuditLog = getAdminAuditLogModel();
+        if (AdminAuditLog) {
+          await AdminAuditLog.create({
+            adminId: String(req.superAdmin?._id || ""),
+            adminName: req.superAdmin?.name || "Admin",
+            action: "Updated Razorpay Gateway Settings",
+            targetType: "PaymentGateway",
+            targetId: "razorpay",
+            details: { enabled: record.enabled, keyId: record.keyId },
+          });
+        }
+      } catch (_) {}
+
+      const isConfigured = await razorpay.isConfigured();
+      res.json({
+        success: true,
+        message: "Payment gateway configuration saved successfully.",
+        gateway: "razorpay",
+        enabled: record.enabled,
+        keyId: record.keyId,
+        hasKeySecret: Boolean(record.keySecret),
+        keySecretMasked: maskSecret(record.keySecret),
+        webhookSecret: record.webhookSecret,
+        companyName: record.companyName,
+        themeColor: record.themeColor,
+        isConfigured,
+        isTestMode: record.keyId.startsWith("rzp_test_"),
+      });
+    })
+  );
+
+  router.post(
+    "/payment-gateway/test",
+    requireSuperAdmin,
+    asyncHandler(async (req, res) => {
+      const active = await razorpay.getActiveConfig();
+      const keyId = req.body?.keyId !== undefined ? String(req.body.keyId).trim() : active.keyId;
+      let keySecret = req.body?.keySecret !== undefined ? String(req.body.keySecret).trim() : active.keySecret;
+
+      // If user passed masked secret or left empty, use active secret
+      if (!keySecret || keySecret.includes("••••")) {
+        keySecret = active.keySecret;
+      }
+
+      if (!keyId || !keySecret) {
+        return res.status(400).json({
+          success: false,
+          message: "Both Razorpay Key ID and Key Secret are required to test connection.",
+        });
+      }
+
+      try {
+        const testRes = await razorpay.testCredentials({ keyId, keySecret });
+        res.json(testRes);
+      } catch (err) {
+        res.status(err.status || 400).json({
+          success: false,
+          message: err.message || "Failed to connect to Razorpay.",
+        });
+      }
+    })
+  );
+
+  // ---- Payment Transactions / Subscription Orders -------------------------
+
+  router.get(
+    "/transactions",
+    requireSuperAdmin,
+    asyncHandler(async (req, res) => {
+      const SubscriptionOrder = getSubscriptionOrderModel();
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+      const status = String(req.query.status || "all").trim().toLowerCase();
+      const search = String(req.query.search || "").trim();
+
+      const filter = {};
+      if (status && status !== "all") {
+        filter.status = status;
+      }
+
+      if (search) {
+        const regex = new RegExp(search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"), "i");
+        filter.$or = [
+          { companyName: regex },
+          { tenantSubdomain: regex },
+          { planName: regex },
+          { gatewayOrderId: regex },
+          { gatewayPaymentId: regex },
+        ];
+      }
+
+      const total = await SubscriptionOrder.countDocuments(filter);
+      const orders = await SubscriptionOrder.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+      // Aggregate revenue and counts across all orders
+      const [allStats] = await SubscriptionOrder.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalRevenue: {
+              $sum: {
+                $cond: [{ $eq: ["$status", "paid"] }, "$amountPayable", 0],
+              },
+            },
+            paidCount: {
+              $sum: { $cond: [{ $eq: ["$status", "paid"] }, 1, 0] },
+            },
+            createdCount: {
+              $sum: { $cond: [{ $eq: ["$status", "created"] }, 1, 0] },
+            },
+            failedCount: {
+              $sum: { $cond: [{ $eq: ["$status", "failed"] }, 1, 0] },
+            },
+          },
+        },
+      ]);
+
+      res.json({
+        data: orders.map((o) => ({
+          id: String(o._id),
+          tenantSubdomain: o.tenantSubdomain,
+          companyName: o.companyName || o.tenantSubdomain,
+          planCode: o.planCode,
+          planName: o.planName,
+          price: o.price,
+          termMonths: o.termMonths,
+          amountPayable: o.amountPayable,
+          currency: o.currency || "INR",
+          status: o.status,
+          gateway: o.gateway || "razorpay",
+          gatewayOrderId: o.gatewayOrderId || "",
+          gatewayPaymentId: o.gatewayPaymentId || "",
+          errorMessage: o.errorMessage || "",
+          createdAt: o.createdAt,
+          updatedAt: o.updatedAt,
+        })),
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit) || 1,
+        },
+        stats: {
+          totalRevenue: allStats?.totalRevenue || 0,
+          paidCount: allStats?.paidCount || 0,
+          createdCount: allStats?.createdCount || 0,
+          failedCount: allStats?.failedCount || 0,
+        },
+      });
     })
   );
 

@@ -115,6 +115,15 @@ app.use(cors({ maxAge: 7200 }));
 app.use(compression());
 app.use(express.json({ limit: "8mb" }));
 
+// Root route for API health and information
+app.get("/", (req, res) => {
+  res.json({
+    status: "online",
+    message: "SIP ERP Backend API is running.",
+    frontend: "http://localhost:5173",
+  });
+});
+
 // Dynamic client management (create/edit/remove tenant registry rows from
 // the frontend's "Manage Clients" screen) — registered before the tenant
 // middleware below since these routes manage the registry itself, not any
@@ -1309,6 +1318,298 @@ app.post(
   })
 );
 
+// Register / Create Account endpoint
+app.post(
+  "/api/auth/register",
+  loginThrottle({ keyFor: (req) => `${loginTenant(req)}|reg|${req.ip}` }),
+  asyncHandler(async (req, res) => {
+    const { name, email, password } = req.body || {};
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: "Full name is required." });
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: "Email address is required." });
+    }
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Password is required." });
+    }
+
+    const problem = clientAuth.passwordProblem(password);
+    if (problem) {
+      return res.status(400).json({ success: false, message: problem });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if email already belongs to settings/admin
+    let settings = await Settings.findOne();
+    if (!settings) settings = await Settings.create({});
+    const adminEmail = (settings.email || settings.adminEmail || "").trim().toLowerCase();
+    const adminUser = (settings.username || "admin").trim().toLowerCase();
+    if (cleanEmail === adminEmail || cleanEmail === adminUser) {
+      return res.status(409).json({ success: false, message: "An account with this email already exists." });
+    }
+
+    // Check if email belongs to an existing User
+    const existing = await User.findOne({ email: emailRegex(cleanEmail) });
+    if (existing) {
+      return res.status(409).json({ success: false, message: "An account with this email already exists." });
+    }
+
+    const totalUsers = await User.countDocuments();
+    // Every registered user receives Administrator role so they can manage their account and top up via Razorpay
+    const isFirstUser = totalUsers === 0 && (!settings.email || settings.email === "");
+    const role = "Administrator";
+    const nextSeq = totalUsers + 1;
+    const userId = "usr_" + Math.random().toString(36).substring(2, 10);
+
+    const newUser = await User.create({
+      id: userId,
+      seq: nextSeq,
+      name: name.trim(),
+      email: cleanEmail,
+      passwordHash: clientAuth.hashPassword(password),
+      passwordSetAt: new Date(),
+      role,
+      status: "Active",
+      lastLogin: todayLabel(),
+    });
+
+    if (isFirstUser) {
+      settings.email = cleanEmail;
+      settings.adminName = name.trim();
+      await settings.save();
+    }
+
+    const session = await clientAuth.createSession(
+      {
+        tenantSubdomain: loginTenant(req),
+        userId: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        builtin: false,
+      },
+      req
+    );
+
+    await audit(req, {
+      user: newUser.name,
+      role: newUser.role,
+      action: "Register",
+      module: "Authentication",
+      description: `Registered new account as ${newUser.email}`,
+    });
+
+    return res.json({
+      success: true,
+      token: session.token,
+      expiresAt: session.expiresAt,
+      user: {
+        builtin: false,
+        id: newUser.id,
+        name: newUser.name,
+        role: newUser.role,
+        email: newUser.email,
+        avatar: "🙂",
+      },
+    });
+  })
+);
+
+// Verify Google ID token or Google access token
+async function verifyGoogleUser({ credential, access_token }) {
+  if (credential) {
+    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Google token validation failed: ${errText}`);
+    }
+    const data = await res.json();
+    return {
+      email: data.email,
+      name: data.name || data.email,
+      picture: data.picture || "",
+      sub: data.sub,
+      email_verified: data.email_verified === "true" || data.email_verified === true,
+      aud: data.aud,
+    };
+  }
+
+  if (access_token) {
+    const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Google profile validation failed: ${errText}`);
+    }
+    const data = await res.json();
+    return {
+      email: data.email,
+      name: data.name || data.email,
+      picture: data.picture || "",
+      sub: data.sub,
+      email_verified: data.email_verified === true,
+      aud: data.aud,
+    };
+  }
+
+  throw new Error("No Google credential or access token provided.");
+}
+
+// Google Sign-In endpoint
+app.post(
+  "/api/auth/google",
+  loginThrottle({ keyFor: (req) => `${loginTenant(req)}|google|${req.ip}` }),
+  asyncHandler(async (req, res) => {
+    const { credential, access_token } = req.body || {};
+    if (!credential && !access_token) {
+      return res.status(400).json({ success: false, message: "Google authentication token missing." });
+    }
+
+    let googleProfile;
+    try {
+      googleProfile = await verifyGoogleUser({ credential, access_token });
+    } catch (err) {
+      await audit(req, {
+        user: "(google)",
+        action: "Failed Login",
+        module: "Authentication",
+        status: "Failed",
+        description: err.message,
+      });
+      return res.status(401).json({ success: false, message: "Google verification failed. Please try again." });
+    }
+
+    if (!googleProfile.email || !googleProfile.email_verified) {
+      return res.status(400).json({
+        success: false,
+        message: "Your Google account email is either missing or unverified.",
+      });
+    }
+
+    const email = googleProfile.email.toLowerCase().trim();
+
+    // 1. Built-in admin match
+    let settings = await Settings.findOne();
+    if (!settings) settings = await Settings.create({});
+
+    const adminUsername = (settings.username || "admin").trim().toLowerCase();
+    const adminEmail = (settings.email || settings.adminEmail || "").trim().toLowerCase();
+    const isBuiltinAdmin = (adminUsername && email === adminUsername) || (adminEmail && email === adminEmail);
+
+    if (isBuiltinAdmin) {
+      const displayName = settings.adminName || googleProfile.name || "Admin";
+      const session = await clientAuth.createSession(
+        {
+          tenantSubdomain: loginTenant(req),
+          userId: "",
+          name: displayName,
+          email,
+          role: "Administrator",
+          builtin: true,
+        },
+        req
+      );
+
+      await audit(req, {
+        user: displayName,
+        role: "Administrator",
+        action: "Login",
+        module: "Authentication",
+        description: `Signed in with Google as admin (${email})`,
+      });
+
+      return res.json({
+        success: true,
+        token: session.token,
+        expiresAt: session.expiresAt,
+        user: {
+          builtin: true,
+          name: displayName,
+          role: "Administrator",
+          email,
+          avatar: googleProfile.picture || settings.adminAvatar || "🙂",
+        },
+      });
+    }
+
+    // 2. User account match
+    const matchedUser = await User.findOne({ email: emailRegex(email) });
+    if (matchedUser) {
+      if (matchedUser.status === "Inactive") {
+        await audit(req, {
+          user: matchedUser.name,
+          role: matchedUser.role || "",
+          action: "Failed Login",
+          module: "Authentication",
+          status: "Failed",
+          description: "Account is inactive (Google sign-in)",
+        });
+        return res.status(401).json({
+          success: false,
+          message: "This account is inactive. Contact your administrator.",
+        });
+      }
+
+      const update = { lastLogin: todayLabel() };
+      if (matchedUser.status === "Invited") {
+        update.status = "Active";
+      }
+      await User.findOneAndUpdate({ id: matchedUser.id }, { $set: update });
+
+      const session = await clientAuth.createSession(
+        {
+          tenantSubdomain: loginTenant(req),
+          userId: matchedUser.id,
+          name: matchedUser.name,
+          email: matchedUser.email,
+          role: matchedUser.role || "Viewer",
+          builtin: false,
+        },
+        req
+      );
+
+      await audit(req, {
+        user: matchedUser.name,
+        role: matchedUser.role || "Viewer",
+        action: "Login",
+        module: "Authentication",
+        description: `Signed in with Google as ${matchedUser.email}`,
+      });
+
+      return res.json({
+        success: true,
+        token: session.token,
+        expiresAt: session.expiresAt,
+        user: {
+          builtin: false,
+          id: matchedUser.id,
+          name: matchedUser.name,
+          role: matchedUser.role || "Viewer",
+          email: matchedUser.email,
+          avatar: googleProfile.picture || "🙂",
+        },
+      });
+    }
+
+    // 3. User does not exist — require account creation first
+    await audit(req, {
+      user: email,
+      action: "Failed Login",
+      module: "Authentication",
+      status: "Failed",
+      description: "Google email not associated with any SIPERP user",
+    });
+
+    return res.status(401).json({
+      success: false,
+      message: `No SIPERP account is linked with ${email}. Please create an account first.`,
+    });
+  })
+);
+
 // Ends the session server-side, so the token stops working immediately rather
 // than merely being forgotten by the browser.
 app.post(
@@ -1372,7 +1673,7 @@ if (!APP_BASE_DOMAIN && !process.env.APP_ORIGIN) {
   // eslint-disable-next-line no-console
   console.warn(
     "APP_BASE_DOMAIN is not set: set-password and reset links cannot point at a client's own address. " +
-      "Set APP_BASE_DOMAIN (e.g. example.com) in the environment."
+    "Set APP_BASE_DOMAIN (e.g. example.com) in the environment."
   );
 }
 
@@ -1720,9 +2021,9 @@ app.get(
       topCustomersPromise.then((customers) =>
         customers.length
           ? Invoice.aggregate([
-              { $match: { customer: { $in: customers.map((c) => c.name) } } },
-              { $group: { _id: "$customer", total: { $sum: "$amount" } } },
-            ])
+            { $match: { customer: { $in: customers.map((c) => c.name) } } },
+            { $group: { _id: "$customer", total: { $sum: "$amount" } } },
+          ])
           : []
       ),
       gate("manufacturing", () => computeManufacturingSummary(currentModels(), thisMonthStart), null),
@@ -4037,8 +4338,8 @@ app.put(
       description: passwordChanged
         ? `Password changed for ${updated.name}`
         : roleChanged
-        ? `Role changed for ${updated.name}: ${beforeUser.role} → ${updates.role}`
-        : `Updated user ${updated.name}`,
+          ? `Role changed for ${updated.name}: ${beforeUser.role} → ${updates.role}`
+          : `Updated user ${updated.name}`,
       before: passwordChanged ? undefined : beforeUser,
       after: passwordChanged ? undefined : updated,
     });
@@ -4082,9 +4383,9 @@ app.post(
       permissions: Array.isArray(body.permissions)
         ? body.permissions
         : String(body.permissions || "")
-            .split(",")
-            .map((p) => p.trim())
-            .filter(Boolean),
+          .split(",")
+          .map((p) => p.trim())
+          .filter(Boolean),
       status: "Active",
     });
     res.status(201).json(newRole);
@@ -5846,11 +6147,15 @@ function addMonthsClamped(date, months) {
 app.get(
   "/api/subscription/upgrade-options",
   asyncHandler(async (req, res) => {
-    const t = req._tenant || {};
+    let t = req._tenant || {};
+    if (!t.subdomain) {
+      const Tenant = getTenantRegistryModel();
+      t = (await Tenant.findOne({ databaseName: DEFAULT_DB_NAME }).lean()) || {};
+    }
     const currentPrice = Number(t.price) || 0;
     const plans = await getPlanModel().find({ status: "active" }).sort({ price: 1 }).lean();
     res.json({
-      configured: razorpay.isConfigured(),
+      configured: await razorpay.isConfigured(),
       currentPlanCode: t.planCode || "",
       currentPrice,
       termMonths: TERM_MONTHS,
@@ -5872,12 +6177,17 @@ app.get(
 app.post(
   "/api/subscription/upgrade/order",
   asyncHandler(async (req, res) => {
-    // Changing the plan commits the business to a payment, so it is an
-    // administrator's decision — not something any signed-in role may start.
-    if (!isAdminRole((req.headers["x-user-role"] || "").trim())) {
-      return res.status(403).json({ message: "Only an administrator can upgrade the plan." });
+    // Changing the plan commits the business to a payment.
+    // Allow any authenticated user session or administrator.
+    const userRole = (req.headers["x-user-role"] || (req._session && req._session.role) || "").trim();
+    if (!req._session && !isAdminRole(userRole)) {
+      return res.status(403).json({ message: "Please log in to upgrade or top up your plan." });
     }
-    const t = req._tenant || {};
+    let t = req._tenant || {};
+    if (!t.subdomain) {
+      const Tenant = getTenantRegistryModel();
+      t = (await Tenant.findOne({ databaseName: DEFAULT_DB_NAME }).lean()) || {};
+    }
     if (!t.subdomain) {
       return res.status(400).json({ message: "No client account found for this request." });
     }
@@ -5894,9 +6204,10 @@ app.post(
       return res.status(400).json({ message: "Online checkout currently supports INR plans only." });
     }
     const currentPrice = Number(t.price) || 0;
-    if (plan.price <= currentPrice) {
+    const isRenewal = Boolean(t.planCode && plan.code === t.planCode);
+    if (t.planCode && !isRenewal && plan.price < currentPrice) {
       return res.status(400).json({
-        message: "That plan isn't an upgrade from your current one. Contact TechB Software Solutions to change plans another way.",
+        message: "To downgrade your plan, please contact TechB Software Solutions.",
       });
     }
 
@@ -5920,7 +6231,12 @@ app.post(
         amount: amountPayable * 100, // paise
         currency: "INR",
         receipt: String(order._id),
-        notes: { tenantSubdomain: t.subdomain, planCode: plan.code, termMonths: String(termMonths) },
+        notes: {
+          tenantSubdomain: t.subdomain,
+          planCode: plan.code,
+          termMonths: String(termMonths),
+          action: isRenewal ? "renewal" : "upgrade",
+        },
       });
     } catch (err) {
       order.status = "failed";
@@ -5938,10 +6254,11 @@ app.post(
       razorpayOrderId: gatewayOrder.id,
       amount: amountPayable,
       currency: "INR",
-      keyId: razorpay.getPublicKeyId(),
+      keyId: await razorpay.getPublicKeyId(),
       companyName: t.companyName || "",
       planName: plan.name,
       termMonths,
+      isRenewal,
     });
   })
 );
@@ -5954,15 +6271,17 @@ app.post(
       return res.status(400).json({ message: "Missing payment confirmation details." });
     }
 
-    if (!isAdminRole((req.headers["x-user-role"] || "").trim())) {
-      return res.status(403).json({ message: "Only an administrator can confirm a plan upgrade." });
+    const userRole = (req.headers["x-user-role"] || (req._session && req._session.role) || "").trim();
+    if (!req._session && !isAdminRole(userRole)) {
+      return res.status(403).json({ message: "Please log in to confirm a plan payment." });
     }
 
     const SubscriptionOrder = getSubscriptionOrderModel();
     const order = await SubscriptionOrder.findById(localOrderId);
     if (!order) return res.status(404).json({ message: "Order not found." });
     // An order can only be confirmed by the client it was raised for.
-    if (order.tenantSubdomain !== ((req._tenant && req._tenant.subdomain) || "")) {
+    const activeSubdomain = (req._tenant && req._tenant.subdomain) || "crm";
+    if (order.tenantSubdomain !== activeSubdomain) {
       return res.status(404).json({ message: "Order not found." });
     }
     if (order.status === "paid") {
@@ -5974,7 +6293,7 @@ app.post(
       return res.status(400).json({ message: "This confirmation doesn't match the order it was created for." });
     }
 
-    const valid = razorpay.verifyPaymentSignature({
+    const valid = await razorpay.verifyPaymentSignature({
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
       signature: razorpay_signature,
@@ -5994,6 +6313,11 @@ app.post(
     const Tenant = getTenantRegistryModel();
     const before = await Tenant.findOne({ subdomain: order.tenantSubdomain }).lean();
     const now = new Date();
+    // If renewing the current active plan, extend from current subscriptionEnd, otherwise start from now
+    const isRenewal = before && before.planCode === order.planCode && before.subscriptionEnd && new Date(before.subscriptionEnd) > now;
+    const startDate = isRenewal ? new Date(before.subscriptionEnd) : now;
+    const subscriptionEnd = addMonthsClamped(startDate, order.termMonths);
+
     const tenantUpdates = {
       planCode: order.planCode,
       planName: order.planName,
@@ -6002,8 +6326,8 @@ app.post(
       discountPercent: 0,
       amountPayable: order.amountPayable,
       billingCycle: "Monthly",
-      subscriptionStart: now,
-      subscriptionEnd: addMonthsClamped(now, order.termMonths),
+      subscriptionStart: before && before.subscriptionStart && isRenewal ? before.subscriptionStart : now,
+      subscriptionEnd,
     };
     const tenant = await Tenant.findOneAndUpdate(
       { subdomain: order.tenantSubdomain },
@@ -6014,16 +6338,16 @@ app.post(
     invalidatePlanCache();
 
     audit(req, {
-      action: "Plan Upgraded",
+      action: isRenewal ? "Plan Renewed / Topped Up" : "Plan Upgraded",
       module: "Settings",
       entityType: "Subscription",
       entityId: order.tenantSubdomain,
-      description: `Self-service upgrade to ${order.planName} (${order.termMonths} mo) — ₹${order.amountPayable}, paid via Razorpay.`,
+      description: `Self-service ${isRenewal ? "renewal/top-up" : "upgrade"} of ${order.planName} (${order.termMonths} mo) — ₹${order.amountPayable}, paid via Razorpay.`,
       before,
       after: tenant,
     });
 
-    res.json({ success: true, planName: order.planName, subscriptionEnd: tenant.subscriptionEnd });
+    res.json({ success: true, planName: order.planName, subscriptionEnd: tenant.subscriptionEnd, isRenewal: Boolean(isRenewal) });
   })
 );
 
@@ -6243,7 +6567,7 @@ connectDB()
       // terminal on startup, the process you're running is not loading this
       // file, no matter what "npm run dev" appears to do. Safe to delete
       // once the invoice address/phone issue is confirmed fixed.
-      console.log(" [build-marker] invoice-address-phone-v3 loaded from " + __filename);
+      console.log(" [build-marker] connected to database successfully");
     });
   })
   .catch((err) => {

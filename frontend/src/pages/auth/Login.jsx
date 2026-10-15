@@ -107,21 +107,106 @@ function GoogleG() {
 }
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, register, googleLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { scale } = useStageScale();
+  const [mode, setMode] = useState("signin"); // "signin" | "register"
   const [username, setUsername] = useState(readRemembered);
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(() => Boolean(readRemembered()));
+  const [name, setName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   // Read once on mount (the getter clears the flag), so landing here after a
   // session ends explains why — and a later manual visit to /login doesn't.
   const [sessionExpired] = useState(takeSessionExpiredFlag);
 
   const from = location.state?.from?.pathname || "/dashboard";
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+  const handleGoogleSuccess = async (tokenOrCredential) => {
+    setError("");
+    setSubmitting(true);
+    try {
+      const result = await googleLogin(tokenOrCredential);
+      if (result && result.success === false) {
+        setError(result.message || "Google sign-in failed. Please try again.");
+        return;
+      }
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.message || "Google sign-in failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    const initGsi = () => {
+      if (!window.google?.accounts?.id) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response) => {
+          if (response?.credential) {
+            handleGoogleSuccess({ credential: response.credential });
+          }
+        },
+      });
+      window.google.accounts.id.prompt();
+    };
+
+    if (window.google?.accounts?.id) {
+      initGsi();
+    } else {
+      const timer = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(timer);
+          initGsi();
+        }
+      }, 300);
+      return () => clearInterval(timer);
+    }
+  }, [GOOGLE_CLIENT_ID]);
+
+  const handleGoogleClick = () => {
+    if (!GOOGLE_CLIENT_ID) {
+      setError("Google Sign-In is not configured yet. Please add VITE_GOOGLE_CLIENT_ID in frontend/.env.");
+      return;
+    }
+
+    if (!window.google?.accounts?.oauth2) {
+      setError("Google authentication service is still loading. Please check your internet connection or try again in a moment.");
+      return;
+    }
+
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: "email profile openid",
+        callback: (resp) => {
+          if (resp.error) {
+            setError(resp.error_description || "Google sign-in was cancelled.");
+            return;
+          }
+          if (resp.access_token) {
+            handleGoogleSuccess({ access_token: resp.access_token });
+          }
+        },
+      });
+      client.requestAccessToken();
+    } catch (err) {
+      setError("Unable to launch Google Sign-In: " + err.message);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -133,10 +218,6 @@ export default function Login() {
     setSubmitting(true);
     try {
       const result = await login(username.trim(), password);
-      // A rejected login throws (client.js turns any non-2xx into an Error,
-      // so a 402 SUBSCRIPTION_INACTIVE surfaces its message here). This also
-      // guards a 200 that carries success:false — without it we would
-      // navigate away with no session and no explanation.
       if (result && result.success === false) {
         setError(result.message || "Login failed. Please try again.");
         return;
@@ -155,75 +236,235 @@ export default function Login() {
     }
   };
 
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!name.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (!regEmail.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+    if (!regPassword) {
+      setError("Please enter a password.");
+      return;
+    }
+    if (regPassword.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!/[a-zA-Z]/.test(regPassword) || !/[0-9]/.test(regPassword)) {
+      setError("Password must contain at least one letter and one number.");
+      return;
+    }
+    if (regPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await register({
+        name: name.trim(),
+        email: regEmail.trim(),
+        password: regPassword,
+      });
+      if (result && result.success === false) {
+        setError(result.message || "Registration failed. Please try again.");
+        return;
+      }
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const card = (
     <div className="tb-card">
+      <div className="tb-card-mark"><SiperpMark /></div>
+      <h2>{mode === "signin" ? "Welcome Back" : "Create Account"}</h2>
+      <p className="tb-card-sub">
+        {mode === "signin" ? "Sign in to your SIPERP account" : "Join SIPERP to get started"}
+      </p>
+
       {(error || sessionExpired) && (
         <div className={`tb-msg ${error ? "err" : ""}`}>
           {error || "Your session has ended. Please sign in again."}
         </div>
       )}
-      <div className="tb-card-mark"><SiperpMark /></div>
-      <h2>Welcome Back</h2>
-      <p className="tb-card-sub">Sign in to your SIPERP account</p>
 
-      <form onSubmit={handleSubmit} noValidate>
-        <label className="tb-label" htmlFor="username">Email Address</label>
-        <div className="tb-input">
-          <span className="tb-input-icon"><Icon name="mail" size={20} /></span>
-          <input
-            id="username"
-            type="text"
-            placeholder="Enter your email address"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            autoFocus
-          />
-        </div>
+      {mode === "signin" ? (
+        <form onSubmit={handleSubmit} noValidate>
+          <label className="tb-label" htmlFor="username">Email Address</label>
+          <div className="tb-input">
+            <span className="tb-input-icon"><Icon name="mail" size={20} /></span>
+            <input
+              id="username"
+              type="text"
+              placeholder="Enter your email address"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              autoFocus
+            />
+          </div>
 
-        <label className="tb-label pw" htmlFor="password">Password</label>
-        <div className="tb-input">
-          <span className="tb-input-icon"><Icon name="lock" size={20} /></span>
-          <input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-          <button
-            type="button"
-            className="tb-input-toggle"
-            onClick={() => setShowPassword((v) => !v)}
-            tabIndex={-1}
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            <Icon name={showPassword ? "eyeOff" : "eye"} size={20} />
+          <label className="tb-label pw" htmlFor="password">Password</label>
+          <div className="tb-input">
+            <span className="tb-input-icon"><Icon name="lock" size={20} /></span>
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              className="tb-input-toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              <Icon name={showPassword ? "eyeOff" : "eye"} size={20} />
+            </button>
+          </div>
+
+          <div className="tb-row">
+            <label className="tb-remember">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              <span>Remember me</span>
+            </label>
+            <Link to="/forgot-password">Forgot password?</Link>
+          </div>
+
+          <button className="tb-submit" type="submit" disabled={submitting}>
+            {submitting ? "Signing in..." : <>Sign In <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></>}
           </button>
-        </div>
+        </form>
+      ) : (
+        <form onSubmit={handleRegisterSubmit} noValidate>
+          <label className="tb-label compact" htmlFor="reg-name">Full Name</label>
+          <div className="tb-input">
+            <span className="tb-input-icon"><Icon name="user" size={20} /></span>
+            <input
+              id="reg-name"
+              type="text"
+              placeholder="Enter your full name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
+              autoFocus
+            />
+          </div>
 
-        <div className="tb-row">
-          <label className="tb-remember">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            <span>Remember me</span>
-          </label>
-          <Link to="/forgot-password">Forgot password?</Link>
-        </div>
+          <label className="tb-label compact" htmlFor="reg-email">Email Address</label>
+          <div className="tb-input">
+            <span className="tb-input-icon"><Icon name="mail" size={20} /></span>
+            <input
+              id="reg-email"
+              type="email"
+              placeholder="Enter your email address"
+              value={regEmail}
+              onChange={(e) => setRegEmail(e.target.value)}
+              autoComplete="email"
+            />
+          </div>
 
-        <button className="tb-submit" type="submit" disabled={submitting}>
-          {submitting ? "Signing in..." : <>Sign In <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></>}
-        </button>
-      </form>
+          <label className="tb-label compact" htmlFor="reg-password">Password</label>
+          <div className="tb-input">
+            <span className="tb-input-icon"><Icon name="lock" size={20} /></span>
+            <input
+              id="reg-password"
+              type={showRegPassword ? "text" : "password"}
+              placeholder="Min 8 chars, 1 letter & 1 number"
+              value={regPassword}
+              onChange={(e) => setRegPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              className="tb-input-toggle"
+              onClick={() => setShowRegPassword((v) => !v)}
+              tabIndex={-1}
+              aria-label={showRegPassword ? "Hide password" : "Show password"}
+            >
+              <Icon name={showRegPassword ? "eyeOff" : "eye"} size={20} />
+            </button>
+          </div>
+
+          <label className="tb-label compact" htmlFor="confirm-password">Confirm Password</label>
+          <div className="tb-input">
+            <span className="tb-input-icon"><Icon name="lock" size={20} /></span>
+            <input
+              id="confirm-password"
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              className="tb-input-toggle"
+              onClick={() => setShowConfirmPassword((v) => !v)}
+              tabIndex={-1}
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+            >
+              <Icon name={showConfirmPassword ? "eyeOff" : "eye"} size={20} />
+            </button>
+          </div>
+
+          <button className="tb-submit" type="submit" disabled={submitting}>
+            {submitting ? "Creating Account..." : <>Create Account <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></>}
+          </button>
+        </form>
+      )}
 
       <div className="tb-or"><span>OR</span></div>
       <button
         type="button"
         className="tb-google"
-        onClick={() => setError("Google sign-in isn't available yet. Please use your email and password.")}
+        disabled={submitting}
+        onClick={handleGoogleClick}
       >
-        <GoogleG /> Continue with Google
+        <GoogleG /> {submitting ? "Connecting..." : "Continue with Google"}
       </button>
+
+      <div className="tb-switch-mode">
+        {mode === "signin" ? (
+          <>
+            Don't have an account?{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setMode("register");
+                setError("");
+              }}
+            >
+              Create Account
+            </button>
+          </>
+        ) : (
+          <>
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setError("");
+              }}
+            >
+              Sign In
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="tb-copy">
         © 2026 SIPERP, a product of TechB Software Solutions Pvt. Ltd.

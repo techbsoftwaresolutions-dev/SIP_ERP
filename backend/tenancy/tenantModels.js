@@ -31,6 +31,7 @@ const { schema: clientSessionSchema } = require("../models/ClientSession");
 const { schema: demoRequestSchema } = require("../models/DemoRequest");
 const { schema: superAdminSchema } = require("../models/SuperAdmin");
 const { schema: adminSessionSchema } = require("../models/AdminSession");
+const { schema: paymentGatewayConfigSchema } = require("../models/PaymentGatewayConfig");
 const { evaluateSubscription } = require("./subscription");
 const { MONGODB_URI } = require("../config/db");
 
@@ -287,7 +288,18 @@ function invalidateRegistryCache(subdomain) {
 // database. "Unknown subdomain" and "known but not allowed in" are different
 // answers and only the first one may fall back.
 async function resolveTenant(subdomain) {
-  if (!subdomain) return null;
+  if (!subdomain) {
+    const cached = registryCache.get("__default__");
+    if (cached && cached.expiresAt > Date.now()) return cached.tenant;
+    try {
+      const Tenant = getTenantRegistryModel();
+      const defaultTenant = await Tenant.findOne({ databaseName: DEFAULT_DB_NAME }).lean();
+      registryCache.set("__default__", { tenant: defaultTenant || null, expiresAt: Date.now() + CACHE_TTL_MS });
+      return defaultTenant || null;
+    } catch (_) {
+      return null;
+    }
+  }
   const cached = registryCache.get(subdomain);
   if (cached && cached.expiresAt > Date.now()) return cached.tenant;
 
@@ -355,12 +367,22 @@ function getAdminSessionModel() {
   return adminSessionModel;
 }
 
+let paymentGatewayConfigModel = null;
+function getPaymentGatewayConfigModel() {
+  if (paymentGatewayConfigModel) return paymentGatewayConfigModel;
+  const masterConn = mongoose.connection.useDb(MASTER_DB_NAME, { useCache: true });
+  paymentGatewayConfigModel =
+    masterConn.models.PaymentGatewayConfig || masterConn.model("PaymentGatewayConfig", paymentGatewayConfigSchema);
+  return paymentGatewayConfigModel;
+}
+
 module.exports = {
   getRequestContext,
   resolveTenant,
   getTenantRegistryModel,
   getSuperAdminModel,
   getAdminSessionModel,
+  getPaymentGatewayConfigModel,
   getPlanModel,
   getSubscriptionOrderModel,
   getModuleModel,

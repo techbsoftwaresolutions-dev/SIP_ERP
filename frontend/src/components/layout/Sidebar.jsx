@@ -21,10 +21,7 @@ const NAV = [
   { key: "dashboard", label: "Dashboard", icon: "home", to: "/dashboard", module: "dashboard" },
   { key: "ai-assistant", label: "AI Assistant", icon: "sparkles", to: "/ai/assistant", roles: ["Administrator"], module: "ai-assistant" },
   { key: "reminders", label: "Reminders", icon: "bell", to: "/reminders", module: "reminders" },
-  // "My Subscription" deliberately lives in the profile menu (Topbar.jsx),
-  // not here and not under Settings: the Settings group is gated on the
-  // `settings` module, so a restrictive plan would hide the one page that
-  // tells a client what their plan actually is.
+  { key: "subscription", label: "My Subscription", icon: "wallet", to: "/subscription" },
   {
     label: "Customers",
     icon: "users",

@@ -80,6 +80,28 @@ export function AuthProvider({ children }) {
     return result;
   }, []);
 
+  const googleLogin = useCallback(async (payload) => {
+    const result = await api.post("/api/auth/google", payload);
+    if (result.success) {
+      clearSwrCache();
+      const sessionPayload = { token: result.token, user: result.user, loginAt: Date.now() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionPayload));
+      setAuth(sessionPayload);
+    }
+    return result;
+  }, []);
+
+  const register = useCallback(async ({ name, email, password }) => {
+    const result = await api.post("/api/auth/register", { name, email, password });
+    if (result.success) {
+      clearSwrCache();
+      const sessionPayload = { token: result.token, user: result.user, loginAt: Date.now() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionPayload));
+      setAuth(sessionPayload);
+    }
+    return result;
+  }, []);
+
   const logout = useCallback(() => {
     // Best-effort audit-log entry — fire before clearing auth so the request
     // still carries the X-User headers. Not awaited; failure is ignored.
@@ -164,7 +186,17 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user: auth?.user || null, token: auth?.token || null, isAuthenticated: !!auth, login, logout, updateUser, updateToken }}
+      value={{
+        user: auth?.user || null,
+        token: auth?.token || null,
+        isAuthenticated: !!auth,
+        login,
+        register,
+        googleLogin,
+        logout,
+        updateUser,
+        updateToken,
+      }}
     >
       {children}
     </AuthContext.Provider>
