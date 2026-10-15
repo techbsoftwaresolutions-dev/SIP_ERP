@@ -1,0 +1,91 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="steel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d7fbf6"/>
+      <stop offset="18%" stop-color="#4fd8cc"/>
+      <stop offset="42%" stop-color="#0d8f8a"/>
+      <stop offset="60%" stop-color="#0a5f5c"/>
+      <stop offset="78%" stop-color="#3ecdc0"/>
+      <stop offset="100%" stop-color="#053b39"/>
+    </linearGradient>
+    <linearGradient id="steelSoft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7fe6da"/>
+      <stop offset="50%" stop-color="#0d8f8a"/>
+      <stop offset="100%" stop-color="#0a5f5c"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffcf9a"/>
+      <stop offset="45%" stop-color="#e0762c"/>
+      <stop offset="100%" stop-color="#a8531a"/>
+    </linearGradient>
+    <!-- reusable gear-tooth "cog leaf" -->
+    <path id="cog" d="M0,0 L-13,-30 C-13,-40 13,-40 13,-30 Z"/>
+  </defs>
+
+
+  <!-- LEFT COG WREATH -->
+  <g fill="url(#steel)" stroke="#053b39" stroke-width="1">
+    <use href="#cog" transform="translate(210,760) rotate(-15) scale(1.3)"/>
+    <use href="#cog" transform="translate(175,700) rotate(-32) scale(1.35)"/>
+    <use href="#cog" transform="translate(148,635) rotate(-50) scale(1.4)"/>
+    <use href="#cog" transform="translate(128,565) rotate(-66) scale(1.4)"/>
+    <use href="#cog" transform="translate(116,495) rotate(-82) scale(1.35)"/>
+    <use href="#cog" transform="translate(112,425) rotate(-98) scale(1.3)"/>
+    <use href="#cog" transform="translate(118,355) rotate(-114) scale(1.25)"/>
+    <use href="#cog" transform="translate(135,290) rotate(-130) scale(1.15)"/>
+    <use href="#cog" transform="translate(163,232) rotate(-146) scale(1.0)"/>
+    <use href="#cog" transform="translate(200,185) rotate(-160) scale(0.85)"/>
+    <use href="#cog" transform="translate(246,150) rotate(-172) scale(0.7)"/>
+  </g>
+  <path d="M215,770 C150,715 100,600 100,470 C100,335 155,225 265,150"
+        fill="none" stroke="url(#steelSoft)" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- RIGHT COG WREATH (mirrored) -->
+  <g fill="url(#steel)" stroke="#053b39" stroke-width="1">
+    <use href="#cog" transform="translate(1390,760) rotate(15) scale(-1.3,1.3)"/>
+    <use href="#cog" transform="translate(1425,700) rotate(32) scale(-1.35,1.35)"/>
+    <use href="#cog" transform="translate(1452,635) rotate(50) scale(-1.4,1.4)"/>
+    <use href="#cog" transform="translate(1472,565) rotate(66) scale(-1.4,1.4)"/>
+    <use href="#cog" transform="translate(1484,495) rotate(82) scale(-1.35,1.35)"/>
+    <use href="#cog" transform="translate(1488,425) rotate(98) scale(-1.3,1.3)"/>
+    <use href="#cog" transform="translate(1482,355) rotate(114) scale(-1.25,1.25)"/>
+    <use href="#cog" transform="translate(1465,290) rotate(130) scale(-1.15,1.15)"/>
+    <use href="#cog" transform="translate(1437,232) rotate(146) scale(-1.0,1.0)"/>
+    <use href="#cog" transform="translate(1400,185) rotate(160) scale(-0.85,0.85)"/>
+    <use href="#cog" transform="translate(1354,150) rotate(172) scale(-0.7,0.7)"/>
+  </g>
+  <path d="M1385,770 C1450,715 1500,600 1500,470 C1500,335 1445,225 1335,150"
+        fill="none" stroke="url(#steelSoft)" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Small bolt/gear sprig above the A -->
+  <g fill="url(#steel)" stroke="#053b39" stroke-width="1">
+    <use href="#cog" transform="translate(845,330) rotate(20) scale(0.7)"/>
+    <use href="#cog" transform="translate(862,300) rotate(20) scale(0.62)"/>
+    <use href="#cog" transform="translate(879,270) rotate(20) scale(0.55)"/>
+    <use href="#cog" transform="translate(893,240) rotate(15) scale(0.48)"/>
+  </g>
+  <circle cx="905" cy="205" r="14" fill="url(#orangeGrad)" stroke="#7a3d10" stroke-width="1"/>
+  <path d="M830,360 C855,335 880,300 903,215" fill="none" stroke="url(#steelSoft)" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Wordmark: SAMAGRA -->
+  <text x="800" y="470" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="190" font-weight="700" letter-spacing="4" fill="url(#steel)" stroke="#053b39" stroke-width="1.5">SAMAGRA</text>
+
+  <!-- Subtitle -->
+  <text x="800" y="570" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="46" font-weight="700" letter-spacing="10" fill="url(#orangeGrad)">INDUSTRIAL SUPPLIES</text>
+
+  <!-- Divider emblem -->
+  <g stroke="url(#steelSoft)" stroke-width="6" stroke-linecap="round">
+    <line x1="440" y1="655" x2="640" y2="655"/>
+    <line x1="440" y1="680" x2="640" y2="680"/>
+    <line x1="440" y1="705" x2="640" y2="705"/>
+    <line x1="960" y1="655" x2="1160" y2="655"/>
+    <line x1="960" y1="680" x2="1160" y2="680"/>
+    <line x1="960" y1="705" x2="1160" y2="705"/>
+  </g>
+
+  <!-- Center nut/gear emblem -->
+  <g transform="translate(800,680)">
+    <polygon points="0,-32 28,-16 28,16 0,32 -28,16 -28,-16" fill="url(#orangeGrad)" stroke="#7a3d10" stroke-width="1.5"/>
+    <circle r="13" fill="#0e1b2e"/>
+  </g>
+</svg>

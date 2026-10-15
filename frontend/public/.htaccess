@@ -1,0 +1,28 @@
+# This app is a single-page app (React Router, client-side routing) — only
+# index.html actually exists on the server. Without this, Apache 404s on
+# anything but the bare domain: a direct link, a bookmark, or a page reload
+# on /dashboard, /admin/clients, /set-password?token=..., etc. all hit
+# Apache before React Router ever runs. This file is what let the
+# set-password invite link work at all.
+#
+# Vite copies everything in frontend/public/ into the build output as-is
+# (see favicon.svg, icons.svg) — this file lands at the site root
+# automatically on every build; nothing else to configure.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Requests for a real file or folder (JS, CSS, images, favicon, etc.) are
+  # served as-is and never rewritten.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else — every client-side route — falls through to
+  # index.html, which loads the app and hands off to React Router.
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Don't let Apache list directory contents for a folder with no index file.
+Options -Indexes

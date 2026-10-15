@@ -1,0 +1,227 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "siperp-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start"
+      ],
+      "cwd": "backend",
+      "port": 5000
+    },
+    {
+      "name": "siperp-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "frontend",
+      "port": 5173
+    },
+    {
+      "name": "siperp-mobile-web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--web",
+        "--port",
+        "8083"
+      ],
+      "cwd": "mobile",
+      "port": 8083,
+      "env": {
+        "API_BASE_URL": "http://localhost:5000",
+        "BROWSER": "none",
+        "CI": "1"
+      }
+    },
+    {
+      "name": "siperp-backend-5000",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start"
+      ],
+      "cwd": "backend",
+      "port": 5000,
+      "env": {
+        "PORT": "5000"
+      }
+    },
+    {
+      "name": "fresh-market-demo-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../fresh_market/backend",
+        "run",
+        "demo"
+      ],
+      "port": 5055
+    },
+    {
+      "name": "fresh-market-admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../fresh_market/admin",
+        "run",
+        "dev"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "fresh-market-customer-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../fresh_market/customer-app",
+        "run",
+        "web"
+      ],
+      "port": 8081,
+      "env": {
+        "BROWSER": "none"
+      }
+    },
+    {
+      "name": "fresh-market-delivery-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../fresh_market/delivery-app",
+        "run",
+        "web"
+      ],
+      "port": 8082,
+      "env": {
+        "BROWSER": "none"
+      }
+    },
+    {
+      "name": "fresh-market-website",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../fresh_market/website",
+        "run",
+        "dev"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "fresh-market-demo-api-alt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../fresh_market/backend",
+        "run",
+        "demo"
+      ],
+      "port": 5056,
+      "env": {
+        "PORT": "5056"
+      }
+    },
+    {
+      "name": "freshveg-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../Techb_Freshveg/backend",
+        "run",
+        "dev"
+      ],
+      "port": 5055
+    },
+    {
+      "name": "freshveg-admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../Techb_Freshveg/admin",
+        "run",
+        "dev"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "freshveg-website",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../Techb_Freshveg/website",
+        "run",
+        "dev"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "freshveg-customer-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../Techb_Freshveg/customer-app",
+        "run",
+        "web"
+      ],
+      "port": 8081,
+      "env": {
+        "BROWSER": "none"
+      }
+    },
+    {
+      "name": "freshveg-delivery-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../Techb_Freshveg/delivery-app",
+        "run",
+        "web"
+      ],
+      "port": 8082,
+      "env": {
+        "BROWSER": "none"
+      }
+    },
+    {
+      "name": "wedoo-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../wedoo/backend",
+        "run",
+        "dev"
+      ],
+      "port": 5000
+    },
+    {
+      "name": "wedoo-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../wedoo/frontend",
+        "start"
+      ],
+      "port": 3000,
+      "env": {
+        "BROWSER": "none",
+        "PORT": "3000"
+      }
+    },
+    {
+      "name": "sbp-traders-website",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "../SPB Traders/node_modules/vite/bin/vite.js",
+        "../SPB Traders",
+        "--port",
+        "5190",
+        "--strictPort"
+      ],
+      "port": 5190
+    }
+  ]
+}

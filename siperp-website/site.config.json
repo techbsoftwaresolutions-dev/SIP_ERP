@@ -1,0 +1,17 @@
+{
+  "_note": "Everything environment-specific about the SIPERP site lives here, not in the code. Edit, then run: npm run build (production) or npm start (local preview, uses the 'development' block).",
+  "siteUrl": "https://siperp.in",
+  "loginUrl": "https://crm.siperp.in/login",
+  "apiUrl": "https://api.siperp.in",
+  "development": {
+    "loginUrl": "http://localhost:5173/login",
+    "apiUrl": "http://localhost:5000"
+  },
+  "company": "Techb Software Solutions",
+  "companyUrl": "https://techbsoftwaresolutions.com",
+  "email": "info@techbsoftwaresolutions.com",
+  "phone": "+91 88921 84047",
+  "phoneRaw": "+918892184047",
+  "whatsappNumber": "918892184047",
+  "address": "Basthi Road, Hosur, Tamil Nadu, India"
+}

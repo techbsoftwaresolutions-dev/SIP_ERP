@@ -1,0 +1,28 @@
+# Hostinger (LiteSpeed / Apache). Upload this with the rest of dist/.
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# HTTPS is switched on in hPanel (Websites -> Security -> Force HTTPS) rather
+# than here, so a wrong rule behind Hostinger's proxy can never loop.
+
+# www -> bare domain, so there is one canonical address
+RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+ErrorDocument 404 /404.html
+DirectoryIndex index.html
+
+<IfModule mod_headers.c>
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+<FilesMatch "\.(css|js|svg)$">
+  Header set Cache-Control "public, max-age=604800"
+</FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml application/xml
+</IfModule>
